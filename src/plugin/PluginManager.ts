@@ -648,32 +648,38 @@ export class PluginManager {
    */
   async reloadPlugin(pluginName: string, client: Client): Promise<boolean> {
     const pluginInfo = this.plugins.get(pluginName);
-    if (!pluginInfo) {
-      logger.warn(`[插件管理] 未找到插件 ${pluginName}`);
-      return false;
+    
+    if (pluginInfo) {
+      // 插件已加载，先卸载再重新加载
+      try {
+        // 先卸载插件
+        const unloadSuccess = await this.unloadPlugin(pluginName);
+        if (!unloadSuccess) {
+          logger.error(`[插件管理] 卸载插件 ${pluginName} 失败`);
+          return false;
+        }
+      } catch (e) {
+        logger.error(`[插件管理] 卸载插件 ${pluginName} 出错:`, e);
+        return false;
+      }
+    } else {
+      logger.info(`[插件管理] 插件 ${pluginName} 未加载，尝试直接加载`);
     }
 
     try {
-      // 先卸载插件
-      const unloadSuccess = await this.unloadPlugin(pluginName);
-      if (!unloadSuccess) {
-        logger.error(`[插件管理] 卸载插件 ${pluginName} 失败`);
-        return false;
-      }
-
       // 重新扫描并加载插件
       await this.scanPluginDir(this.pluginDir, client, "插件目录", false);
 
       // 检查是否重新加载成功
       if (this.plugins.has(pluginName)) {
-        logger.info(`[插件管理] 插件 ${pluginName} 重载成功`);
+        logger.info(`[插件管理] 插件 ${pluginName} ${pluginInfo ? '重载' : '加载'}成功`);
         return true;
       } else {
-        logger.error(`[插件管理] 插件 ${pluginName} 重载后未找到`);
+        logger.error(`[插件管理] 插件 ${pluginName} ${pluginInfo ? '重载' : '加载'}后未找到`);
         return false;
       }
     } catch (e) {
-      logger.error(`[插件管理] 重载插件 ${pluginName} 出错:`, e);
+      logger.error(`[插件管理] ${pluginInfo ? '重载' : '加载'}插件 ${pluginName} 出错:`, e);
       return false;
     }
   }

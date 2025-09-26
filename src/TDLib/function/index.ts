@@ -615,26 +615,6 @@ export async function parseTextEntities(
   parse_mode: "MarkdownV2" | "HTML" = "MarkdownV2"
 ): Promise<formattedText> {
   try {
-    if (parse_mode === "MarkdownV2") {
-      const s = String(text);
-      // 不对 Markdown 链接的括号部分进行转义（例如 [text](http://...)、![alt](tg://emoji?...)、[name](tg://user?id=...)）
-      // 找到所有形如 [text](url) 的片段，跳过这些片段内部的转义，仅对其他部分执行转义。
-      const linkRegex = /\[[^\]]*\]\((?:[^)]*)\)/g;
-      let result = "";
-      let lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = linkRegex.exec(s)) !== null) {
-        // 转义匹配之前的文本
-        const before = s.slice(lastIndex, m.index);
-        result += before.replace(/([.#()])/g, "\\$1");
-        // 直接保留匹配到的整个链接片段，不对其内部做任何转义
-        result += m[0];
-        lastIndex = m.index + m[0].length;
-      }
-      // 处理剩余尾部
-      result += s.slice(lastIndex).replace(/([.#()-])/g, "\\$1");
-      text = result;
-    }
     const result = await client.invoke({
       _: "parseTextEntities",
       text: text,

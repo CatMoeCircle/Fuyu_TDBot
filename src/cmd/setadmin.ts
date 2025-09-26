@@ -21,7 +21,7 @@ export default class setAdmin extends Plugin {
           try {
             if (!args || args.length === 0) {
               sendMessage(this.client, update.message.chat_id, {
-                text: "命令使用方法\n/setadmin <password> - 设置超级管理员password在服务器开启日志中会显示\n/setadmin <user_id> - 设置管理员(仅限超级管理员使用)\n/setadmin clear <user_id> - 清除管理员(仅限超级管理员使用)",
+                text: "命令使用方法\n/setadmin <password> \\- 设置超级管理员password在服务器开启日志中会显示\n/setadmin <user_id> \\- 设置管理员(仅限超级管理员使用)\n/setadmin clear <user_id> \\- 清除管理员(仅限超级管理员使用)",
               });
               return;
             }
