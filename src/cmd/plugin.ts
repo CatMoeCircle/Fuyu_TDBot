@@ -47,13 +47,13 @@ export default class PluginCommand extends Plugin {
                 "*使用方法：*\n" +
                 "`/plugin <操作> [参数]`\n\n" +
                 "*可用操作：*\n" +
-                "• `list` \\- 查看所有插件列表\n" +
-                "• `info <插件名>` \\- 查看插件详细信息\n" +
-                "• `enable <插件名>` \\- 启用插件\n" +
-                "• `disable <插件名>` \\- 禁用插件\n" +
-                "• `reload <插件名>` \\- 重载插件\n" +
-                "• `unload <插件名>` \\- 卸载插件\n" +
-                "• `disabled` \\- 查看禁用的插件列表\n\n" +
+                "• `list` - 查看所有插件列表\n" +
+                "• `info <插件名>` - 查看插件详细信息\n" +
+                "• `enable <插件名>` - 启用插件\n" +
+                "• `disable <插件名>` - 禁用插件\n" +
+                "• `reload <插件名>` - 重载插件\n" +
+                "• `unload <插件名>` - 卸载插件\n" +
+                "• `disabled` - 查看禁用的插件列表\n\n" +
                 "*示例：*\n" +
                 "`/plugin list`\n" +
                 "`/plugin info 示例插件`\n" +
@@ -213,7 +213,7 @@ export default class PluginCommand extends Plugin {
             const cmdDef = plugin.instance.cmdHandlers[cmd];
             message += `• \`${cmd}\``;
             if (cmdDef.description) {
-              message += ` \\- ${cmdDef.description}`;
+              message += ` - ${cmdDef.description}`;
             }
             message += `\n`;
           });
@@ -238,7 +238,7 @@ export default class PluginCommand extends Plugin {
             const runDef = plugin.instance.runHandlers[handler];
             message += `• ${handler}`;
             if (runDef.description) {
-              message += ` \\- ${runDef.description}`;
+              message += ` - ${runDef.description}`;
             }
             message += `\n`;
           });
@@ -319,8 +319,13 @@ export default class PluginCommand extends Plugin {
         // 重新扫描插件目录来加载被启用的插件
         try {
           // 使用私有方法重新扫描插件目录
-          await (pluginManager as any).scanPluginDir((pluginManager as any).pluginDir, this.client, "插件目录", false);
-          
+          await (pluginManager as any).scanPluginDir(
+            (pluginManager as any).pluginDir,
+            this.client,
+            "插件目录",
+            false
+          );
+
           if (pluginManager.hasPlugin(pluginName)) {
             await sendMessage(this.client, chatId, {
               text: `✅ *插件启用并加载成功*\n\n插件 "${pluginName}" 已成功启用并加载。`,

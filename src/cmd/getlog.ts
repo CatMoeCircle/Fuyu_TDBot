@@ -47,11 +47,11 @@ export default class getlog extends Plugin {
               text:
                 "📋 *日志文件获取命令*\n\n" +
                 "*使用方法：*\n" +
-                "`/log <类型\\>`\n\n" +
+                "`/log <类型>`\n\n" +
                 "*可用的日志类型：*\n" +
-                "• `info` \\- 获取应用日志 (app.log)\n" +
-                "• `error` \\- 获取错误日志 (error.log)\n" +
-                "• `messages` \\- 获取消息日志 \\(messages.log\\)\n\n" +
+                "• `info` - 获取应用日志 (app.log)\n" +
+                "• `error` - 获取错误日志 (error.log)\n" +
+                "• `messages` - 获取消息日志 (messages.log)\n\n" +
                 "*示例：*\n" +
                 "`/log info`\n" +
                 "`/log error`\n" +

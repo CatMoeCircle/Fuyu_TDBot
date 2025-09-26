@@ -20,7 +20,7 @@ export default class start extends Plugin {
           try {
             // 发送消息示例（使用 client.invoke）
             await sendMessage(this.client, updateNewMessage.message.chat_id, {
-              text: "Hello\\! 欢迎使用本 Bot。\n\n使用 /help 查看可用命令。\n\n本bot由 [Fuyu\\_TDBot](https://github.com/CatMoeCircle/Fuyu\\_TDBot) 框架驱动",
+              text: "Hello! 欢迎使用本 Bot。\n\n使用 /help 查看可用命令。\n\n本bot由 [Fuyu_TDBot](https://github.com/CatMoeCircle/Fuyu_TDBot) 框架驱动",
             });
           } catch (e) {
             logger.error("发送消息失败", e);

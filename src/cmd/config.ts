@@ -45,17 +45,17 @@ export default class ConfigCommand extends Plugin {
               text:
                 "⚙️ *配置管理命令*\n\n" +
                 "*使用方法：*\n" +
-                "`/config <操作\\> \\[参数\\]`\n\n" +
+                "`/config <操作> [参数]`\n\n" +
                 "**可用操作：**\n" +
-                "• `list` \\- 查看所有配置\n" +
-                "• `get` \\- 查看配置详情\n" +
-                "• `set <配置项\\> <值\\>` \\- 设置配置值\n\n" +
+                "• `list` - 查看所有配置\n" +
+                "• `get` - 查看配置详情\n" +
+                "• `set <配置项> <值>` - 设置配置值\n\n" +
                 "*可修改的配置：*\n" +
                 "• `PREFIXES` - 命令前缀设置\n\n" +
                 "*示例：*\n" +
                 "`/config list`\n" +
                 "`/config get`\n" +
-                "`/config set PREFIXES / \\! \\.`",
+                "`/config set PREFIXES / ! .`",
             });
             return;
           }
@@ -72,7 +72,7 @@ export default class ConfigCommand extends Plugin {
             case "set":
               if (args.length < 3) {
                 await sendMessage(this.client, chatId, {
-                  text: "❌ *参数错误*\n\n使用方法：`/config set <配置项\\> <值\\>`\n\n示例：`/config set PREFIXES / \\! \\.`",
+                  text: "❌ *参数错误*\n\n使用方法：`/config set <配置项> <值>`\n\n示例：`/config set PREFIXES / ! .`",
                 });
                 return;
               }

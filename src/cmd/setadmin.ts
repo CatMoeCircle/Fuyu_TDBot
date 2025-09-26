@@ -21,7 +21,7 @@ export default class setAdmin extends Plugin {
           try {
             if (!args || args.length === 0) {
               sendMessage(this.client, update.message.chat_id, {
-                text: "命令使用方法\n/setadmin <password> \\- 设置超级管理员password在服务器开启日志中会显示\n/setadmin <user_id> \\- 设置管理员(仅限超级管理员使用)\n/setadmin clear <user_id> \\- 清除管理员(仅限超级管理员使用)",
+                text: "命令使用方法\n/setadmin <password> - 设置超级管理员password在服务器开启日志中会显示\n/setadmin <user_id> - 设置管理员(仅限超级管理员使用)\n/setadmin clear <user_id> - 清除管理员(仅限超级管理员使用)",
               });
               return;
             }
@@ -103,8 +103,23 @@ export default class setAdmin extends Plugin {
                 return;
               }
 
-              // 移除管理员
+              // 不能撤销超级管理员自己的权限
+              if (config.super_admin && targetUserId === config.super_admin) {
+                await sendMessage(this.client, update.message.chat_id, {
+                  text: "❌ 无法撤销超级管理员（自己）的权限",
+                });
+                return;
+              }
+
+              // 移除管理员前检查是否存在于管理员列表中
               const currentAdmins = config.admin || [];
+              if (!currentAdmins.includes(targetUserId)) {
+                await sendMessage(this.client, update.message.chat_id, {
+                  text: `⚠️ 用户 ${targetUserId} 不在管理员列表中，无法移除`,
+                });
+                return;
+              }
+
               const updatedAdmins = currentAdmins.filter(
                 (id) => id !== targetUserId
               );

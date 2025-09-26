@@ -20,6 +20,10 @@ import {
   getUser,
 } from "./get.ts";
 
+import { remark } from "remark";
+import remarkParse from "remark-parse";
+import type { Root, RootContent, Node } from "mdast";
+
 type Td$chatPermissions = Omit<chatPermissions$Input, "_"> & {
   _?: chatPermissions$Input["_"];
 };
@@ -615,6 +619,9 @@ export async function parseTextEntities(
   parse_mode: "MarkdownV2" | "HTML" = "MarkdownV2"
 ): Promise<formattedText> {
   try {
+    if (parse_mode === "MarkdownV2") {
+      text = await mdToTelegram(text);
+    }
     const result = await client.invoke({
       _: "parseTextEntities",
       text: text,
@@ -635,4 +642,146 @@ export async function parseTextEntities(
       entities: [],
     };
   }
+}
+
+// Telegram MarkdownV2 特殊字符
+const ESCAPE_CHARS = /[_*[\]()~`>#+\-=|{}.!]/g;
+// 代码内部需额外转义 \
+const ESCAPE_CHARS_CODE = /[_*[\]()~`>#+\-=|{}.!\\]/g;
+
+/** 普通文本转义 */
+function escapeMarkdownV2(text: string): string {
+  return text.replace(ESCAPE_CHARS, (m) => "\\" + m);
+}
+
+/** 代码块 / 行内代码内部转义 */
+function escapeCode(text: string): string {
+  return text.replace(ESCAPE_CHARS_CODE, (m) => "\\" + m);
+}
+
+/** 递归转换 AST -> Telegram MarkdownV2 */
+function toTelegram(node: Node | RootContent, original = ""): string {
+  if (!node) return "";
+
+  const typedNode = node as any; // Using any for simplicity with remark node types
+
+  switch (typedNode.type) {
+    case "root":
+      return (typedNode.children as RootContent[])
+        .map((c) => toTelegram(c, original))
+        .join("\n");
+
+    case "paragraph":
+      return (
+        (typedNode.children as RootContent[])
+          .map((c) => toTelegram(c, original))
+          .join("") + "\n"
+      );
+
+    case "heading":
+      return `*${(typedNode.children as RootContent[])
+        .map((c) => toTelegram(c, original))
+        .join("")}*\n`;
+
+    case "strong":
+      return (
+        "*" +
+        (typedNode.children as RootContent[])
+          .map((c) => toTelegram(c, original))
+          .join("") +
+        "*"
+      );
+
+    case "emphasis":
+      return (
+        "_" +
+        (typedNode.children as RootContent[])
+          .map((c) => toTelegram(c, original))
+          .join("") +
+        "_"
+      );
+
+    case "underline":
+      // 下划线 + 内部斜体歧义处理
+      const innerText = (typedNode.children as RootContent[])
+        .map((c) => toTelegram(c, original))
+        .join("");
+      const hasItalic = (typedNode.children as RootContent[]).some(
+        (c: any) =>
+          c.type === "emphasis" ||
+          (c.children && c.children.some((cc: any) => cc.type === "emphasis"))
+      );
+      if (hasItalic) return "__" + innerText + "_**__";
+      return "__" + innerText + "__";
+
+    case "delete":
+      return (
+        "~" +
+        (typedNode.children as RootContent[])
+          .map((c) => toTelegram(c, original))
+          .join("") +
+        "~"
+      );
+
+    case "inlineCode":
+      return "`" + escapeCode(typedNode.value) + "`";
+
+    case "code":
+      return "```" + "\n" + escapeCode(typedNode.value) + "\n```";
+
+    case "link":
+      return `[${(typedNode.children as RootContent[])
+        .map((c) => toTelegram(c, original))
+        .join("")}](${escapeMarkdownV2(typedNode.url)})`;
+
+    case "image":
+      return `[${typedNode.alt}](${escapeMarkdownV2(typedNode.url)})`;
+
+    case "blockquote":
+      // 递归生成引用文本
+      const blockText = (typedNode.children as RootContent[])
+        .map((c) => toTelegram(c, original))
+        .join("\n");
+
+      // 判断是否需要可折叠分隔
+      const isExpandable = blockText.endsWith("||");
+
+      // 每行加 >
+      let quoted = blockText
+        .split("\n")
+        .map((line) => (line ? ">" + line : ">"))
+        .join("\n");
+
+      if (isExpandable) {
+        quoted = "**" + quoted + "**"; // 空粗体分隔
+      }
+
+      return quoted;
+
+    // 不支持的节点 → 保留原文本，并转义 MarkdownV2 特殊字符
+    default:
+      if (typedNode.position) {
+        let raw = original.slice(
+          typedNode.position.start.offset,
+          typedNode.position.end.offset
+        );
+
+        // 处理 ||spoiler|| → 保留原文本并转义
+        raw = raw.replace(/\|\|(.+?)\|\|/g, (m) => escapeMarkdownV2(m));
+
+        return escapeMarkdownV2(raw);
+      } else if (typedNode.children) {
+        return (typedNode.children as RootContent[])
+          .map((c) => toTelegram(c, original))
+          .join("");
+      } else {
+        return "";
+      }
+  }
+}
+
+/** 主函数 */
+export async function mdToTelegram(mdText: string): Promise<string> {
+  const tree = remark().use(remarkParse).parse(mdText) as Root;
+  return toTelegram(tree, mdText).trim();
 }
