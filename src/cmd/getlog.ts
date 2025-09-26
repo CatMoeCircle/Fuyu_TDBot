@@ -112,8 +112,7 @@ export default class getlog extends Plugin {
                 `📄 **${displayName}文件**\n\n` +
                 `📁 **文件名：** \`${fileName}\`\n` +
                 `📊 **大小：** ${fileSizeKB} KB\n` +
-                `🕐 **最后修改：** ${lastModified}\n\n` +
-                `🤖 由 xiaoqvan动漫BOT 提供`,
+                `🕐 **最后修改：** ${lastModified}\n\n`,
               media: {
                 file: {
                   path: logFilePath,

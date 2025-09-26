@@ -56,7 +56,7 @@ export default class setAdmin extends Plugin {
                 ]);
 
                 await sendMessage(this.client, update.message.chat_id, {
-                  text: "✅ 超级管理员设置成功！临时密码已清除。",
+                  text: "✅ 超级管理员设置成功！临时密码已失效。",
                 });
 
                 logger.info(`超级管理员已设置：用户ID ${userId}`);
