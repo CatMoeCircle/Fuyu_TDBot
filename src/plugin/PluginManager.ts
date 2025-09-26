@@ -648,7 +648,7 @@ export class PluginManager {
    */
   async reloadPlugin(pluginName: string, client: Client): Promise<boolean> {
     const pluginInfo = this.plugins.get(pluginName);
-    
+
     if (pluginInfo) {
       // 插件已加载，先卸载再重新加载
       try {
@@ -672,14 +672,23 @@ export class PluginManager {
 
       // 检查是否重新加载成功
       if (this.plugins.has(pluginName)) {
-        logger.info(`[插件管理] 插件 ${pluginName} ${pluginInfo ? '重载' : '加载'}成功`);
+        logger.info(
+          `[插件管理] 插件 ${pluginName} ${pluginInfo ? "重载" : "加载"}成功`
+        );
         return true;
       } else {
-        logger.error(`[插件管理] 插件 ${pluginName} ${pluginInfo ? '重载' : '加载'}后未找到`);
+        logger.error(
+          `[插件管理] 插件 ${pluginName} ${
+            pluginInfo ? "重载" : "加载"
+          }后未找到`
+        );
         return false;
       }
     } catch (e) {
-      logger.error(`[插件管理] ${pluginInfo ? '重载' : '加载'}插件 ${pluginName} 出错:`, e);
+      logger.error(
+        `[插件管理] ${pluginInfo ? "重载" : "加载"}插件 ${pluginName} 出错:`,
+        e
+      );
       return false;
     }
   }
@@ -750,6 +759,85 @@ export class PluginManager {
       }
     } catch (e) {
       logger.error(`[插件管理] 禁用插件 ${pluginName} 出错:`, e);
+      return false;
+    }
+  }
+
+  /**
+   * 删除插件文件或目录（同时尝试卸载插件并从禁用列表移除）
+   * @param pluginName 插件名称（对应 plugins 目录下的文件或文件夹名）
+   */
+  async deletePlugin(pluginName: string): Promise<boolean> {
+    try {
+      // 只在插件目录下操作，构造可能的候选路径
+      const candidatePaths = [
+        path.join(this.pluginDir, pluginName),
+        path.join(this.pluginDir, `${pluginName}.ts`),
+        path.join(this.pluginDir, `${pluginName}.js`),
+        path.join(this.pluginDir, pluginName, "index.ts"),
+        path.join(this.pluginDir, pluginName, "index.js"),
+      ];
+
+      let foundPath: string | null = null;
+      for (const p of candidatePaths) {
+        if (fs.existsSync(p)) {
+          foundPath = p;
+          break;
+        }
+      }
+
+      if (!foundPath) {
+        logger.warn(
+          `[插件管理] 未在插件目录 ${this.pluginDir} 中找到插件 ${pluginName} 的文件或文件夹`
+        );
+        return false;
+      }
+
+      // 如果插件已加载，先卸载
+      if (this.hasPlugin(pluginName)) {
+        const unloaded = await this.unloadPlugin(pluginName);
+        if (!unloaded) {
+          logger.error(
+            `[插件管理] 卸载插件 ${pluginName} 失败，已停止删除操作`
+          );
+          return false;
+        }
+      }
+
+      // 删除文件或目录（递归安全删除）
+      try {
+        const st = fs.statSync(foundPath);
+        if (st.isDirectory()) {
+          // 递归删除目录
+          fs.rmSync(foundPath, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(foundPath);
+        }
+      } catch (e) {
+        logger.error(`[插件管理] 删除插件路径 ${foundPath} 失败:`, e);
+        return false;
+      }
+
+      // 从禁用列表中移除（如果存在）
+      try {
+        const { getConfig, upsertConfig } = await import("@db/config.ts");
+        const pluginsConfig = await getConfig("plugins");
+        if (pluginsConfig && Array.isArray(pluginsConfig.disabled)) {
+          const idx = pluginsConfig.disabled.indexOf(pluginName);
+          if (idx > -1) {
+            pluginsConfig.disabled.splice(idx, 1);
+            await upsertConfig("plugins", { disabled: pluginsConfig.disabled });
+            logger.debug(`[插件管理] 从禁用列表中移除已删除插件 ${pluginName}`);
+          }
+        }
+      } catch (e) {
+        logger.debug(`[插件管理] 更新插件配置时出错（可忽略）:`, e);
+      }
+
+      logger.info(`[插件管理] 已删除插件 ${pluginName} (路径: ${foundPath})`);
+      return true;
+    } catch (e) {
+      logger.error(`[插件管理] 删除插件 ${pluginName} 出错:`, e);
       return false;
     }
   }

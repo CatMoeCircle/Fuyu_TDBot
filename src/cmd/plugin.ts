@@ -52,7 +52,7 @@ export default class PluginCommand extends Plugin {
                 "• `enable <插件名>` - 启用插件\n" +
                 "• `disable <插件名>` - 禁用插件\n" +
                 "• `reload <插件名>` - 重载插件\n" +
-                "• `unload <插件名>` - 卸载插件\n" +
+                "• `delete <插件名>` - 删除插件(不可逆)\n" +
                 "• `disabled` - 查看禁用的插件列表\n\n" +
                 "*示例：*\n" +
                 "`/plugin list`\n" +
@@ -106,14 +106,15 @@ export default class PluginCommand extends Plugin {
               }
               await this.handleReloadPlugin(chatId, args[1]);
               break;
-            case "unload":
+
+            case "delete":
               if (args.length < 2) {
                 await sendMessage(this.client, chatId, {
-                  text: "❌ *参数错误*\n\n使用方法：`/plugin unload <插件名>`",
+                  text: "❌ *参数错误*\n\n使用方法：`/plugin delete <插件名>`",
                 });
                 return;
               }
-              await this.handleUnloadPlugin(chatId, args[1]);
+              await this.handleDeletePlugin(chatId, args[1]);
               break;
             case "disabled":
               await this.handleListDisabledPlugins(chatId);
@@ -390,7 +391,7 @@ export default class PluginCommand extends Plugin {
 
       if (success) {
         await sendMessage(this.client, chatId, {
-          text: `✅ *插件禁用成功*\n\n插件 "${pluginName}" 已被禁用并卸载。\n\n💡 *提示:* 使用 \`/plugin enable ${pluginName}\` 来重新启用插件。`,
+          text: `✅ *插件禁用成功*\n\n插件 "${pluginName}" 已被禁用。\n\n💡 *提示:* 使用 \`/plugin enable ${pluginName}\` 来重新启用插件。`,
         });
       } else {
         await sendMessage(this.client, chatId, {
@@ -452,9 +453,9 @@ export default class PluginCommand extends Plugin {
   }
 
   /*
-   * 处理卸载插件命令
+   * 处理删除插件命令（彻底删除文件/目录）
    */
-  private async handleUnloadPlugin(chatId: number, pluginName: string) {
+  private async handleDeletePlugin(chatId: number, pluginName: string) {
     try {
       const { getPluginManager } = await import("@function/plugins.ts");
       const pluginManager = getPluginManager();
@@ -466,37 +467,42 @@ export default class PluginCommand extends Plugin {
         return;
       }
 
-      // 检查插件是否存在
-      if (!pluginManager.hasPlugin(pluginName)) {
+      // 禁止删除系统命令或关键插件
+      const internalCommands = pluginManager.getInternalCommands();
+      if (internalCommands.find((c) => c.name === pluginName)) {
         await sendMessage(this.client, chatId, {
-          text: `❌ *插件未加载*\n\n插件 "${pluginName}" 当前未加载。\n\n使用 \`/plugin list\` 查看已加载的插件。`,
+          text: "❌ *无法删除系统命令或内置插件*\n\n此项为系统命令或内置插件，无法通过此命令删除。",
         });
         return;
       }
 
-      // 检查是否是系统关键插件，防止卸载自己
+      // 禁止删除插件管理自身
       if (pluginName === "插件管理") {
         await sendMessage(this.client, chatId, {
-          text: `❌ *无法卸载*\n\n无法卸载插件管理系统插件。`,
+          text: "❌ *无法删除*\n\n无法删除插件管理系统插件。",
         });
         return;
       }
 
-      const success = await pluginManager.unloadPlugin(pluginName);
+      await sendMessage(this.client, chatId, {
+        text: `⚠️ *即将删除插件*\n\n正在尝试删除插件 "${pluginName}"，这将从磁盘中移除插件文件或文件夹，操作不可恢复。请稍候...`,
+      });
+
+      const success = await (pluginManager as any).deletePlugin(pluginName);
 
       if (success) {
         await sendMessage(this.client, chatId, {
-          text: `✅ *插件卸载成功*\n\n插件 "${pluginName}" 已被卸载。\n\n💡 *提示:* 插件文件仍然存在，重启程序后会重新加载。如需彻底禁用，请使用 \`/plugin disable ${pluginName}\`。`,
+          text: `✅ *删除成功*\n\n插件 "${pluginName}" 已从磁盘中删除。`,
         });
       } else {
         await sendMessage(this.client, chatId, {
-          text: `❌ *插件卸载失败*\n\n插件 "${pluginName}" 卸载时遇到问题。请检查日志了解详细信息。`,
+          text: `❌ *删除失败*\n\n插件 "${pluginName}" 删除失败，可能插件文件不存在或删除时发生错误。请检查日志以获取详细信息。`,
         });
       }
     } catch (error) {
-      logger.error(`卸载插件 ${pluginName} 时出错:`, error);
+      logger.error(`删除插件 ${pluginName} 时出错:`, error);
       await sendMessage(this.client, chatId, {
-        text: `❌ *卸载插件时发生错误*\n\n插件 "${pluginName}" 卸载失败。\n\n错误信息已记录到日志中。`,
+        text: `❌ *删除插件时发生错误*\n\n插件 "${pluginName}" 删除失败。错误信息已记录到日志中。`,
       });
     }
   }
