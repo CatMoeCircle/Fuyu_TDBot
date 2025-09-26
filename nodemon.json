@@ -1,0 +1,7 @@
+{
+  "watch": ["src", "plugins"],
+  "ext": "ts,js,json",
+  "ignore": ["node_modules"],
+  "delay": "2500",
+  "exec": "node --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\" src/index.ts --debug"
+}

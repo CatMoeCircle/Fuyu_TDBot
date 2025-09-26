@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "types": ["node"],
+    "esModuleInterop": true,
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "baseUrl": "./src",
+    "paths": {
+      "@log/*": ["./log/*"],
+      "@plugin/*": ["./plugin/*"],
+      "@TDLib/*": ["./TDLib/*"],
+      "@types/*": ["./types/*"],
+      "@function/*": ["./function/*"],
+      "@db/*": ["./Database/*"]
+    }
+  },
+  "include": ["src", "src/types", "plugins"],
+  "exclude": ["node_modules", "dist"]
+}
