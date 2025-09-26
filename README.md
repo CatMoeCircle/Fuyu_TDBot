@@ -24,7 +24,7 @@ FuyuBot 是一个基于 **TDLib** 封装的 **Telegram Bot 框架**，目标是�
 - 🧩 **插件系统**，模块化扩展
 - 👥 支持 **Bot 账号** 与 **用户账号（自走人形）**
 - 🔧 现代化开发：ESM + TypeScript
-- 🛠️ [插件开发文档](plugins\README.md)
+- 🛠️ [插件开发文档](plugins/README.md)
 
 ---
 
