@@ -43,8 +43,8 @@ Android: [Mongodb](https://github.com/vedfi/mondroid)
 ### 🚀 快速开始
 ```bash
 # 克隆项目
-git clone https://github.com/CatMoeCircle/fuyu-tdbot.git
-cd fuyu-tdbot
+git clone https://github.com/CatMoeCircle/Fuyu_TDBot.git
+cd Fuyu_TDBot
 
 # 安装依赖
 pnpm install
