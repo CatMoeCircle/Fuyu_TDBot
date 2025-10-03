@@ -21,7 +21,7 @@ import {
 } from "./get.ts";
 
 import { remark } from "remark";
-import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
 import type { Root, RootContent, Node } from "mdast";
 
 type Td$chatPermissions = Omit<chatPermissions$Input, "_"> & {
@@ -644,144 +644,257 @@ export async function parseTextEntities(
   }
 }
 
-// Telegram MarkdownV2 特殊字符
+/**
+ * @fileoverview 将标准 Markdown (包含 GFM) 转换为 Telegram 的 MarkdownV2 格式。
+ *
+ * 此脚本使用 'remark' AST (抽象语法树) 解析器来稳健地处理 Markdown 结构。
+ * 主要功能：
+ * - 将粗体、斜体、删除线转换为 Telegram 的特定语法。
+ * - 处理行内代码、代码块 (支持语言标识符) 和链接。
+ * - 支持有序列表和无序列表。
+ * - 实现了一个模式匹配系统，用于将特定的节点序列转换为 Telegram 官方的可折叠/可展开块引用格式。
+ */
+
+// --- 1. 用于转义的工具函数 ---
 const ESCAPE_CHARS = /[_*[\]()~`>#+\-=|{}.!]/g;
-// 代码内部需额外转义 \
-const ESCAPE_CHARS_CODE = /[_*[\]()~`>#+\-=|{}.!\\]/g;
+const ESCAPE_CHARS_CODE = /[_*[\]()~`>#+\-=|{}.!\\`]/g;
 
-/** 普通文本转义 */
 function escapeMarkdownV2(text: string): string {
-  return text.replace(ESCAPE_CHARS, (m) => "\\" + m);
+  return text.replace(ESCAPE_CHARS, (char) => "\\" + char);
 }
 
-/** 代码块 / 行内代码内部转义 */
 function escapeCode(text: string): string {
-  return text.replace(ESCAPE_CHARS_CODE, (m) => "\\" + m);
+  return text.replace(ESCAPE_CHARS_CODE, (char) => "\\" + char);
 }
 
-/** 递归转换 AST -> Telegram MarkdownV2 */
+// --- 2. 类型守卫函数 ---
+
+function hasChildren(node: Node): node is Node & { children: RootContent[] } {
+  return (
+    "children" in node &&
+    Array.isArray((node as { children?: unknown }).children)
+  );
+}
+
+function hasValue(node: Node): node is Node & { value: string } {
+  return (
+    "value" in node && typeof (node as { value?: unknown }).value === "string"
+  );
+}
+
+function hasUrl(node: Node): node is Node & { url: string } {
+  return "url" in node && typeof (node as { url?: unknown }).url === "string";
+}
+
+function hasAlt(node: Node): node is Node & { alt?: string } {
+  return "alt" in node;
+}
+
+function hasLang(node: Node): node is Node & { lang?: string } {
+  return "lang" in node;
+}
+
+function hasOrdered(node: Node): node is Node & { ordered?: boolean } {
+  return "ordered" in node;
+}
+
+function hasPosition(node: Node): node is Node & {
+  position: {
+    start: { offset: number };
+    end: { offset: number };
+  };
+} {
+  return (
+    "position" in node &&
+    typeof (node as { position?: unknown }).position === "object" &&
+    (node as { position?: { start?: unknown } }).position !== null &&
+    "start" in (node as { position: { start?: unknown } }).position &&
+    "end" in (node as { position: { end?: unknown } }).position
+  );
+}
+
+// --- 3. 核心转换逻辑 ---
+
 function toTelegram(node: Node | RootContent, original = ""): string {
   if (!node) return "";
 
-  const typedNode = node as any; // Using any for simplicity with remark node types
-
-  switch (typedNode.type) {
-    case "root":
-      return (typedNode.children as RootContent[])
+  switch (node.type) {
+    case "root": {
+      // 逻辑回归简化:直接处理所有子节点,块与块之间用换行符分隔
+      if (!hasChildren(node)) return "";
+      return node.children
         .map((c) => toTelegram(c, original))
+        .filter((s) => s) // 过滤掉可能产生的空字符串
         .join("\n");
+    }
+
+    case "blockquote": {
+      // 所有核心逻辑都集中在这里
+      if (!hasChildren(node)) return "";
+
+      // 1. 获取块引用内部所有段落的纯文本内容,并用换行符连接
+      const innerContent = node.children
+        .map((paragraphNode) => {
+          if (hasChildren(paragraphNode)) {
+            return paragraphNode.children
+              .map((c) => toTelegram(c, original))
+              .join("");
+          }
+          return "";
+        })
+        .join("\n");
+
+      // 2. 定义分隔符（一个独立的 '**' 行）和结尾标记
+      const separator = "\n**\n";
+      const hasSeparator = innerContent.includes(separator);
+      const hasEndMark = innerContent.trim().endsWith("||");
+
+      // 3. 判断是否为可折叠块
+      if (hasSeparator && hasEndMark) {
+        // 是可折叠块，进行解析和重构
+        const contentWithoutMark = innerContent.trim().slice(0, -2);
+
+        // 使用分隔符来切分可见与隐藏部分
+        const parts = contentWithoutMark.split(separator);
+
+        const visiblePart = parts[0];
+        // 即使有多个分隔符，也只处理第一个，其余归为隐藏部分
+        const hiddenPart = parts.slice(1).join(separator);
+
+        // 4. 为各部分重新构建 Telegram 格式
+        const visibleLines = visiblePart
+          .split("\n")
+          .map((line) => ">" + line)
+          .join("\n");
+        const hiddenLines = hiddenPart
+          .split("\n")
+          .map((line) => ">" + line)
+          .join("\n");
+
+        return `${visibleLines}\n>**\n${hiddenLines}||`;
+      } else {
+        // 是一个普通的块引用，直接添加 '>' 前缀
+        return innerContent
+          .split("\n")
+          .map((line) => ">" + line)
+          .join("\n");
+      }
+    }
 
     case "paragraph":
-      return (
-        (typedNode.children as RootContent[])
-          .map((c) => toTelegram(c, original))
-          .join("") + "\n"
-      );
+      if (!hasChildren(node)) return "";
+      return node.children.map((c) => toTelegram(c, original)).join("");
 
     case "heading":
-      return `*${(typedNode.children as RootContent[])
-        .map((c) => toTelegram(c, original))
-        .join("")}*\n`;
+      if (!hasChildren(node)) return "";
+      return `*${node.children.map((c) => toTelegram(c, original)).join("")}*`;
 
-    case "strong":
-      return (
-        "*" +
-        (typedNode.children as RootContent[])
-          .map((c) => toTelegram(c, original))
-          .join("") +
-        "*"
-      );
-
-    case "emphasis":
-      return (
-        "_" +
-        (typedNode.children as RootContent[])
-          .map((c) => toTelegram(c, original))
-          .join("") +
-        "_"
-      );
-
-    case "underline":
-      // 下划线 + 内部斜体歧义处理
-      const innerText = (typedNode.children as RootContent[])
+    case "strong": {
+      // 检查原始文本中使用的是 ** 还是 __
+      if (!hasChildren(node)) return "";
+      const innerText = node.children
         .map((c) => toTelegram(c, original))
         .join("");
-      const hasItalic = (typedNode.children as RootContent[]).some(
-        (c: any) =>
-          c.type === "emphasis" ||
-          (c.children && c.children.some((cc: any) => cc.type === "emphasis"))
-      );
-      if (hasItalic) return "__" + innerText + "_**__";
-      return "__" + innerText + "__";
+
+      // 通过检查节点在原始文本中的位置来判断使用的标记
+      if (hasPosition(node) && original) {
+        const start = node.position.start.offset;
+        const end = node.position.end.offset;
+        const nodeText = original.substring(start, end);
+
+        // 如果原始文本使用的是 __,转换为 Telegram 的下划线格式
+        if (nodeText.startsWith("__") && nodeText.endsWith("__")) {
+          return `__${innerText}__`;
+        }
+      }
+
+      // 默认情况(使用 ** 或无法判断)转换为粗体
+      return `*${innerText}*`;
+    }
+
+    case "emphasis": {
+      // 检查原始文本中使用的是 * 还是 _
+      if (!hasChildren(node)) return "";
+      const innerText = node.children
+        .map((c) => toTelegram(c, original))
+        .join("");
+
+      // 通过检查节点在原始文本中的位置来判断使用的标记
+      if (hasPosition(node) && original) {
+        const start = node.position.start.offset;
+        const end = node.position.end.offset;
+        const nodeText = original.substring(start, end);
+
+        // 如果原始文本使用的是单个 _,保持为下划线(但这在 Telegram 中是斜体)
+        if (
+          nodeText.startsWith("_") &&
+          nodeText.endsWith("_") &&
+          !nodeText.startsWith("__")
+        ) {
+          return `_${innerText}_`;
+        }
+      }
+
+      // 默认情况(使用 * 或无法判断)转换为斜体
+      return `_${innerText}_`;
+    }
 
     case "delete":
-      return (
-        "~" +
-        (typedNode.children as RootContent[])
-          .map((c) => toTelegram(c, original))
-          .join("") +
-        "~"
-      );
+      if (!hasChildren(node)) return "";
+      return `~${node.children.map((c) => toTelegram(c, original)).join("")}~`;
 
-    case "inlineCode":
-      return "`" + escapeCode(typedNode.value) + "`";
-
-    case "code":
-      return "```" + "\n" + escapeCode(typedNode.value) + "\n```";
+    case "list": {
+      if (!hasChildren(node)) return "";
+      const isOrdered = hasOrdered(node) && node.ordered;
+      return node.children
+        .map((listItem, i) => {
+          const prefix = isOrdered ? `${i + 1}\\. ` : "- ";
+          if (!hasChildren(listItem)) return prefix;
+          const itemContent = listItem.children
+            .map((contentNode) => toTelegram(contentNode, original).trim())
+            .join("\n");
+          return prefix + itemContent;
+        })
+        .join("\n");
+    }
 
     case "link":
-      return `[${(typedNode.children as RootContent[])
+      if (!hasChildren(node) || !hasUrl(node)) return "";
+      return `[${node.children
         .map((c) => toTelegram(c, original))
-        .join("")}](${escapeMarkdownV2(typedNode.url)})`;
+        .join("")}](${escapeMarkdownV2(node.url)})`;
 
     case "image":
-      return `[${typedNode.alt}](${escapeMarkdownV2(typedNode.url)})`;
+      if (!hasUrl(node)) return "";
+      const alt = hasAlt(node) && node.alt ? node.alt : "image";
+      return `![${alt}](${escapeMarkdownV2(node.url)})`;
 
-    case "blockquote":
-      // 递归生成引用文本
-      const blockText = (typedNode.children as RootContent[])
-        .map((c) => toTelegram(c, original))
-        .join("\n");
+    case "inlineCode":
+      if (!hasValue(node)) return "";
+      return "`" + escapeCode(node.value) + "`";
 
-      // 判断是否需要可折叠分隔
-      const isExpandable = blockText.endsWith("||");
+    case "code": {
+      if (!hasValue(node)) return "";
+      const lang =
+        hasLang(node) && node.lang ? escapeMarkdownV2(node.lang) : "";
+      return "```" + lang + "\n" + escapeCode(node.value) + "\n```";
+    }
 
-      // 每行加 >
-      let quoted = blockText
-        .split("\n")
-        .map((line) => (line ? ">" + line : ">"))
-        .join("\n");
+    case "text": {
+      if (!hasValue(node)) return "";
+      return escapeMarkdownV2(node.value).replace(
+        /\\\|\\\|(.*?)\\\|\\\|/g,
+        (_, inner) => `||${inner}||`
+      );
+    }
 
-      if (isExpandable) {
-        quoted = "**" + quoted + "**"; // 空粗体分隔
-      }
-
-      return quoted;
-
-    // 不支持的节点 → 保留原文本，并转义 MarkdownV2 特殊字符
     default:
-      if (typedNode.position) {
-        let raw = original.slice(
-          typedNode.position.start.offset,
-          typedNode.position.end.offset
-        );
-
-        // 处理 ||spoiler|| → 保留原文本并转义
-        raw = raw.replace(/\|\|(.+?)\|\|/g, (m) => escapeMarkdownV2(m));
-
-        return escapeMarkdownV2(raw);
-      } else if (typedNode.children) {
-        return (typedNode.children as RootContent[])
-          .map((c) => toTelegram(c, original))
-          .join("");
-      } else {
-        return "";
-      }
+      return "";
   }
 }
 
-/** 主函数 */
+// --- 3. 主导出函数 ---
 export async function mdToTelegram(mdText: string): Promise<string> {
-  const tree = remark().use(remarkParse).parse(mdText) as Root;
+  const tree = remark().use(remarkGfm).parse(mdText) as Root;
   return toTelegram(tree, mdText).trim();
 }
