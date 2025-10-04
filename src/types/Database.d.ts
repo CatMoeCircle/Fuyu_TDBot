@@ -19,6 +19,10 @@ export type PluginsConfig = {
 export type CmdConfig = {
   type: "config";
   PREFIXES: string[];
+  cmd?: {
+    help?: string;
+    start?: string;
+  };
 };
 
 export type BotConfig = {
