@@ -13,10 +13,8 @@ export default async function initEnv() {
 
   async function checkAndroidTDLib() {
     const platform = os.platform();
-    const arch = os.arch();
 
-    // 检测是否为安卓系统 (通常为 linux + arm64)
-    if (platform === "linux" && (arch === "arm64" || arch === "aarch64")) {
+    if (platform === "android") {
       const tdlibPath = path.resolve(
         process.cwd(),
         "node_modules/@prebuilt-tdlib/linux-arm64-glibc/libtdjson.so"
