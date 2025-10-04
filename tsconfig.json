@@ -16,7 +16,7 @@
       "@log/*": ["./log/*"],
       "@plugin/*": ["./plugin/*"],
       "@TDLib/*": ["./TDLib/*"],
-      "@types/*": ["./types/*"],
+      "@type/*": ["./types/*"],
       "@function/*": ["./function/*"],
       "@db/*": ["./Database/*"]
     }

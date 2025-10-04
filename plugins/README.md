@@ -107,7 +107,7 @@ export default class HelloPlugin extends Plugin {
 		this.cmdHandlers = {
 			hello: {
 				description: "回复 '你好，世界！'",
-				handler: async (updateNewMessage) => {
+				handler: async (updateNewMessage,args) => {
 					try {
 						await this.client.invoke({
 							_: "sendMessage",

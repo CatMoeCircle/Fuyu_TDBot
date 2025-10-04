@@ -27,7 +27,7 @@ export async function resolve(
       "@log/": "src/log/",
       "@plugin/": "src/plugin/",
       "@TDLib/": "src/TDLib/",
-      "@types/": "src/types/",
+      "@type/": "src/types/",
       "@function/": "src/function/",
       "@db/": "src/Database/",
     };
