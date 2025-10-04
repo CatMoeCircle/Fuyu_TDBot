@@ -720,29 +720,57 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
   switch (node.type) {
     case "root": {
-      // 逻辑回归简化:直接处理所有子节点,块与块之间用换行符分隔
+      // 逻辑回归简化:直接处理所有子节点
       if (!hasChildren(node)) return "";
-      return node.children
-        .map((c) => toTelegram(c, original))
-        .filter((s) => s) // 过滤掉可能产生的空字符串
-        .join("\n");
+      const results: string[] = [];
+
+      for (let i = 0; i < node.children.length; i++) {
+        const child = node.children[i];
+        const content = toTelegram(child, original);
+
+        if (content) {
+          results.push(content);
+
+          // 在块级元素之间添加适当的换行
+          // 如果当前元素不是最后一个,检查是否需要添加额外的换行
+          if (i < node.children.length - 1) {
+            const nextChild = node.children[i + 1];
+
+            // 如果当前元素是段落/标题,且下一个不是块引用的一部分,添加空行
+            if (
+              (child.type === "paragraph" || child.type === "heading") &&
+              nextChild.type !== "blockquote"
+            ) {
+              results.push("");
+            }
+            // 如果当前元素是块引用,下一个元素之前添加空行
+            else if (child.type === "blockquote") {
+              results.push("");
+            }
+          }
+        }
+      }
+
+      return results.join("\n");
     }
 
     case "blockquote": {
       // 所有核心逻辑都集中在这里
       if (!hasChildren(node)) return "";
 
-      // 1. 获取块引用内部所有段落的纯文本内容,并用换行符连接
-      const innerContent = node.children
-        .map((paragraphNode) => {
-          if (hasChildren(paragraphNode)) {
-            return paragraphNode.children
-              .map((c) => toTelegram(c, original))
-              .join("");
-          }
-          return "";
-        })
-        .join("\n");
+      // 1. 获取块引用内部所有段落的纯文本内容
+      // 注意:这里不合并段落,保持每个段落作为独立的行
+      const paragraphs: string[] = [];
+      for (const child of node.children) {
+        if (child.type === "paragraph" && hasChildren(child)) {
+          const paraContent = child.children
+            .map((c) => toTelegram(c, original))
+            .join("");
+          paragraphs.push(paraContent);
+        }
+      }
+
+      const innerContent = paragraphs.join("\n");
 
       // 2. 定义分隔符（一个独立的 '**' 行）和结尾标记
       const separator = "\n**\n";
@@ -882,10 +910,16 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
     case "text": {
       if (!hasValue(node)) return "";
-      return escapeMarkdownV2(node.value).replace(
+      // 转义文本,但保留特殊的 || 用法
+      let escaped = escapeMarkdownV2(node.value);
+      // 恢复 spoiler 标记: ||...||
+      escaped = escaped.replace(
         /\\\|\\\|(.*?)\\\|\\\|/g,
         (_, inner) => `||${inner}||`
       );
+      // 恢复末尾的可折叠引用标记: ||
+      escaped = escaped.replace(/\\\|\\\|$/g, "||");
+      return escaped;
     }
 
     default:
