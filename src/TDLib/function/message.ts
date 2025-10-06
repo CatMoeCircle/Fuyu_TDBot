@@ -445,6 +445,8 @@ export async function editMessageText(
  *
  * 在服务器端完成编辑后返回已编辑的消息
  * @param client - TDLib 客户端实例
+ * @param chat_id - 对话ID
+ * @param message_id - 消息ID
  * @param params - 编辑消息参数
  * @returns 已编辑的消息
  */
