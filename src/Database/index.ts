@@ -3,6 +3,8 @@ import { MongoClient } from "mongodb";
 import logger from "@log/index.ts";
 import { randomBytes } from "crypto";
 
+const DEFAULT_DB_NAME = "fuyubot";
+
 function getMongoUri(): string {
   const uri = process.env.MONGODB_URL;
 
@@ -13,9 +15,24 @@ function getMongoUri(): string {
   return uri;
 }
 
+function extractDatabaseName(uri: string): string {
+  const match = uri.match(/^mongodb(?:\+srv)?:\/\/[^/]+\/([^?]+)/i);
+
+  if (match && match[1]) {
+    const rawName = match[1].split("/")[0];
+    const decodedName = decodeURIComponent(rawName.trim());
+    if (decodedName) {
+      return decodedName;
+    }
+  }
+
+  return DEFAULT_DB_NAME;
+}
+
 let client: MongoClient | null = null;
 let database: Db | null = null;
 let databaseInitPromise: Promise<Db> | null = null;
+let cachedDbName: string | null = null;
 
 /**
  * 建立或复用 MongoClient 连接。
@@ -57,7 +74,9 @@ async function ensureDatabase(): Promise<Db> {
     databaseInitPromise = (async () => {
       logger.info("正在连接数据库...");
       const mongoClient = await connectClient();
-      const dbInstance = mongoClient.db("fuyubot");
+      const dbName = cachedDbName ?? extractDatabaseName(getMongoUri());
+      cachedDbName = dbName;
+      const dbInstance = mongoClient.db(dbName);
 
       try {
         const config = dbInstance.collection("config");
@@ -190,5 +209,6 @@ export async function closeDatabase(): Promise<void> {
     client = null;
     database = null;
     databaseInitPromise = null;
+    cachedDbName = null;
   }
 }
