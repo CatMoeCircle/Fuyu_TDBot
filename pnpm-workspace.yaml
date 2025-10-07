@@ -2,3 +2,5 @@ onlyBuiltDependencies:
   - esbuild
   - realm
   - tdl
+packages:
+  - "plugins/*"
