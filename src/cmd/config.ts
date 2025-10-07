@@ -53,16 +53,17 @@ export default class ConfigCommand extends Plugin {
                 "• `delete <配置项>` - 删除配置值\n\n" +
                 "*可修改的配置：*\n" +
                 "• `PREFIXES` - 命令前缀设置\n" +
-                "• `cmd.help` - 自定义帮助命令文本\n" +
-                "• `cmd.start` - 自定义start命令文本\n\n" +
+                "• `helpText` - 自定义帮助命令文本\n" +
+                "• `startText` - 自定义start命令文本\n\n" +
                 "*示例：*\n" +
                 "`/config list`\n" +
                 "`/config get`\n" +
                 "`/config set PREFIXES / ! .`\n" +
-                "`/config set cmd.help 这是自定义的帮助文本`\n" +
-                "`/config set cmd.start 欢迎使用我的机器人`\n" +
-                "`/config delete cmd.help`\n" +
-                "`/config delete cmd.start`",
+                "`/config set helpText 这是自定义的帮助文本\\n支持换行符\\n多行显示`\n" +
+                "`/config set startText 欢迎使用我的机器人\\n这是第二行`\n" +
+                "`/config delete helpText`\n" +
+                "`/config delete startText`\n\n" +
+                "💡 **换行提示：** 在文本中使用 `\\n` 来表示换行符",
             });
             return;
           }
@@ -79,7 +80,7 @@ export default class ConfigCommand extends Plugin {
             case "set":
               if (args.length < 3) {
                 await sendMessage(this.client, chatId, {
-                  text: "❌ *参数错误*\n\n使用方法：`/config set <配置项> <值>`\n\n示例：`/config set PREFIXES / ! .`\n`/config set cmd.help 自定义帮助文本`",
+                  text: "❌ *参数错误*\n\n使用方法：`/config set <配置项> <值>`\n\n示例：`/config set PREFIXES / ! .`\n`/config set helpText 自定义帮助文本`",
                 });
                 return;
               }
@@ -88,7 +89,7 @@ export default class ConfigCommand extends Plugin {
             case "delete":
               if (args.length < 2) {
                 await sendMessage(this.client, chatId, {
-                  text: "❌ *参数错误*\n\n使用方法：`/config delete <配置项>`\n\n示例：`/config delete cmd.help`",
+                  text: "❌ *参数错误*\n\n使用方法：`/config delete <配置项>`\n\n示例：`/config delete helpText`",
                 });
                 return;
               }
@@ -204,11 +205,11 @@ export default class ConfigCommand extends Plugin {
 
       if (
         field !== "PREFIXES" &&
-        field !== "cmd.help" &&
-        field !== "cmd.start"
+        field !== "helpText" &&
+        field !== "startText"
       ) {
         await sendMessage(this.client, chatId, {
-          text: `❌ **无效的配置项**\n\n支持的配置项：PREFIXES, cmd.help, cmd.start\n\n使用 \`/config get\` 查看当前配置。`,
+          text: `❌ **无效的配置项**\n\n支持的配置项：PREFIXES, helpText, startText\n\n使用 \`/config get\` 查看当前配置。`,
         });
         return;
       }
@@ -238,14 +239,16 @@ export default class ConfigCommand extends Plugin {
         }
         updateData[field] = parsedValue;
       }
-      // 处理 cmd.help 字段
-      else if (field === "cmd.help") {
-        // 将数组合并为字符串
+      // 处理 helpText 字段
+      else if (field === "helpText") {
+        // 将数组合并为字符串，保持原始的换行符
         parsedValue = Array.isArray(value) ? value.join(" ") : value;
+        // 将 \n 转换为实际的换行符
+        parsedValue = parsedValue.replace(/\\n/g, "\n");
 
         if (!parsedValue || parsedValue.trim().length === 0) {
           await sendMessage(this.client, chatId, {
-            text: "❌ **无效的帮助文本**\n\n帮助文本不能为空。\n\n示例：`/config set cmd.help 这是自定义的帮助信息`",
+            text: "❌ **无效的帮助文本**\n\n帮助文本不能为空。\n\n示例：`/config set helpText 这是自定义的帮助信息\\n支持换行符\\n多行显示`",
           });
           return;
         }
@@ -257,14 +260,16 @@ export default class ConfigCommand extends Plugin {
           help: parsedValue,
         };
       }
-      // 处理 cmd.start 字段
-      else if (field === "cmd.start") {
-        // 将数组合并为字符串
+      // 处理 startText 字段
+      else if (field === "startText") {
+        // 将数组合并为字符串，保持原始的换行符
         parsedValue = Array.isArray(value) ? value.join(" ") : value;
+        // 将 \n 转换为实际的换行符
+        parsedValue = parsedValue.replace(/\\n/g, "\n");
 
         if (!parsedValue || parsedValue.trim().length === 0) {
           await sendMessage(this.client, chatId, {
-            text: "❌ **无效的start文本**\n\nstart文本不能为空。\n\n示例：`/config set cmd.start 欢迎使用我的机器人`",
+            text: "❌ **无效的start文本**\n\nstart文本不能为空。\n\n示例：`/config set startText 欢迎使用我的机器人\\n这是第二行`",
           });
           return;
         }
@@ -303,15 +308,15 @@ export default class ConfigCommand extends Plugin {
     try {
       const { upsertConfig, getConfig } = await import("@db/config.ts");
 
-      if (field !== "cmd.help" && field !== "cmd.start") {
+      if (field !== "helpText" && field !== "startText") {
         await sendMessage(this.client, chatId, {
-          text: `❌ **无效的配置项**\n\n可删除的配置项：cmd.help, cmd.start\n\n💡 **提示:** PREFIXES 不支持删除操作。`,
+          text: `❌ **无效的配置项**\n\n可删除的配置项：helpText, startText\n\n💡 **提示:** PREFIXES 不支持删除操作。`,
         });
         return;
       }
 
-      // 处理 cmd.help 删除
-      if (field === "cmd.help") {
+      // 处理 helpText 删除
+      if (field === "helpText") {
         const currentConfig = await getConfig("config");
 
         if (!currentConfig?.cmd?.help) {
@@ -337,8 +342,8 @@ export default class ConfigCommand extends Plugin {
 
         logger.info(`配置已删除: config.${field}`);
       }
-      // 处理 cmd.start 删除
-      else if (field === "cmd.start") {
+      // 处理 startText 删除
+      else if (field === "startText") {
         const currentConfig = await getConfig("config");
 
         if (!currentConfig?.cmd?.start) {

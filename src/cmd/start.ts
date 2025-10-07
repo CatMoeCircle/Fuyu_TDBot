@@ -28,13 +28,34 @@ export default class start extends Plugin {
 
             if (config?.cmd?.start) {
               text = config.cmd.start;
-              logger.debug("使用自定义start文本");
+              logger.debug("使用自定义start文本:", JSON.stringify(text));
             }
 
             // 发送消息示例（使用 client.invoke）
-            await sendMessage(this.client, updateNewMessage.message.chat_id, {
-              text: text,
-            });
+            if (config?.cmd?.start) {
+              // 对于自定义start文本，使用纯文本模式发送以保持换行符
+              await this.client.invoke({
+                _: "sendMessage",
+                chat_id: updateNewMessage.message.chat_id,
+                input_message_content: {
+                  _: "inputMessageText",
+                  text: {
+                    _: "formattedText",
+                    text: text,
+                    entities: [],
+                  },
+                  link_preview_options: {
+                    _: "linkPreviewOptions",
+                    is_disabled: true,
+                  },
+                },
+              });
+            } else {
+              // 默认文本使用正常的 sendMessage（支持 Markdown）
+              await sendMessage(this.client, updateNewMessage.message.chat_id, {
+                text: text,
+              });
+            }
           } catch (e) {
             logger.error("发送消息失败", e);
           }

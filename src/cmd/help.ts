@@ -20,10 +20,24 @@ export function createHelpHandler(
       // 如果存在自定义帮助文本,直接使用
       if (config?.cmd?.help) {
         try {
-          await sendMessage(client, update.message.chat_id, {
-            text: config.cmd.help,
+          logger.debug("使用自定义帮助文本:", JSON.stringify(config.cmd.help));
+          // 对于自定义帮助文本，使用纯文本模式发送以保持换行符
+          await client.invoke({
+            _: "sendMessage",
+            chat_id: update.message.chat_id,
+            input_message_content: {
+              _: "inputMessageText",
+              text: {
+                _: "formattedText",
+                text: config.cmd.help,
+                entities: [],
+              },
+              link_preview_options: {
+                _: "linkPreviewOptions",
+                is_disabled: true,
+              },
+            },
           });
-          logger.debug("使用自定义帮助文本");
           return;
         } catch (e) {
           logger.error("发送自定义帮助消息失败", e);
