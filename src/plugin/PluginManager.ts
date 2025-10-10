@@ -54,6 +54,8 @@ export class PluginManager {
    * 为插件的 runHandlers 设置定时器并可选立即执行
    */
   private setupPluginRuns(pluginName: string, instance: BasePlugin) {
+    this.clearPluginRuns(pluginName);
+
     if (!instance.runHandlers || Object.keys(instance.runHandlers).length === 0)
       return;
 
@@ -188,7 +190,6 @@ export class PluginManager {
       });
     });
 
-    // 加载完成后为每个插件注册并启动 runHandlers（如果有）
     for (const pi of this.plugins.values()) {
       this.setupPluginRuns(pi.name, pi.instance);
     }
@@ -949,7 +950,7 @@ export class PluginManager {
               err
             );
           }
-          return; // 找到处理器后停止查找
+          return;
         } catch (e) {
           logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
         }
