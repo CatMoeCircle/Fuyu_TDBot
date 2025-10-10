@@ -88,6 +88,7 @@ import logger from "@log/index.ts";
 export default class HelloPlugin extends Plugin {
 	name = "hello";
 	version = "0.1.0";
+	type = "general"; // 插件类型，只能 bot 使用(使用了bot的回调按钮)还是 user (使用了bot不能使用的方法) 如何都能用则是general
 	description = "示例：响应 /hello 命令";
 
 	runHandlers = {
