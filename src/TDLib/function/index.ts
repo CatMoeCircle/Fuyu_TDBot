@@ -498,8 +498,8 @@ export async function isPrivate(client: Client, chat_id: number) {
  * 检查给定的聊天是否为频道。
  *
  * @param client - TDLib 客户端实例
- * @param {Number} chat_id
- * @returns {Promise<boolean>} 如果是频道，则返回true；否则返回false。
+ * @param chat_id
+ * @returns 如果是频道，则返回true；否则返回false。
  */
 export async function isChannel(client: Client, chat_id: number) {
   const chatinfo = await getChat(client, chat_id);
