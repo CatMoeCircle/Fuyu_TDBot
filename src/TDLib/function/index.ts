@@ -256,6 +256,29 @@ export async function downloadFile(
     );
   }
 }
+/*
+ * 删除指定的文件。
+ *
+ * @param client - TDLib 客户端实例
+ * @param file_id - 要删除的文件的远程文件 ID。
+ *
+ */
+export async function deleteFile(client: Client, file_id: number) {
+  try {
+    client.invoke({
+      _: "deleteFile",
+      file_id: file_id,
+    });
+    return;
+  } catch (error) {
+    logger.error("删除文件时出错:", `param ${file_id}`, error);
+    throw new Error(
+      `删除 ${file_id} 失败: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
 
 /**
  * 封禁指定聊天成员。
