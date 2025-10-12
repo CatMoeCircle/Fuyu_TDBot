@@ -59,7 +59,7 @@ export async function sendMessage(
               text: await parseTextEntities(client, text, "MarkdownV2"),
               link_preview_options: link_preview
                 ? { _: "linkPreviewOptions", is_disabled: link_preview }
-                : { _: "linkPreviewOptions", is_disabled: true },
+                : { _: "linkPreviewOptions", is_disabled: false },
             },
           }
         : {}),
@@ -365,7 +365,7 @@ export async function editMessageText(
           text: await parseTextEntities(client, text, "MarkdownV2"),
           link_preview_options: link_preview
             ? { _: "linkPreviewOptions", is_disabled: link_preview }
-            : undefined,
+            : { _: "linkPreviewOptions", is_disabled: false },
         }
       : undefined,
   };
