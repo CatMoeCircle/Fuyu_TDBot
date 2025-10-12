@@ -920,8 +920,36 @@ export class PluginManager {
 
     // 解析命令和参数（去掉前缀并按空白分隔）
     const parts = messageText.slice(prefix.length).trim().split(/\s+/);
-    const commandName = parts[0];
+    let commandName = parts[0];
     const args = parts.slice(1);
+
+    // 处理 @bot 后缀（例如: /help@bot_name -> help）
+    const atIndex = commandName.indexOf("@");
+    if (atIndex > 0) {
+      const targetUsername = commandName.slice(atIndex + 1);
+      commandName = commandName.slice(0, atIndex);
+
+      // 获取自己的用户名，检查是否匹配
+      try {
+        const meConfig = await getConfig("me");
+        if (meConfig && meConfig.info) {
+          const myUsername = meConfig.info.usernames?.editable_username;
+          if (myUsername && myUsername !== targetUsername) {
+            // @的不是自己，忽略此命令
+            logger.debug(
+              `[插件管理] 命令 @${targetUsername} 不是本机器人 @${myUsername}，忽略`
+            );
+            return;
+          }
+        }
+      } catch (configError) {
+        logger.warn(
+          `[插件管理] 获取 me 配置失败,忽略带 @ 的命令:`,
+          configError
+        );
+        return;
+      }
+    }
 
     logger.debug(`[插件管理] 处理命令: ${prefix}${commandName}`, args);
 
@@ -931,9 +959,12 @@ export class PluginManager {
       try {
         await internal.handler(message, args);
         return;
-      } catch (e) {
-        logger.error(`[插件管理] 自带命令 ${commandName} 处理出错:`, e);
-        return;
+      } catch (configError) {
+        logger.warn(
+          `[插件管理] 获取 me 配置失败,忽略带 @ 的命令:`,
+          configError
+        );
+        return; // 带 @ 的命令不处理
       }
     }
 
