@@ -27,6 +27,7 @@ export class PluginManager {
   private pluginRunTimers: Map<string, Map<string, any>> = new Map();
   private pluginDir: string;
   private internalPluginDir: string;
+  private client: Client | null = null;
   // 系统插件命令注册表
   private internalCmdHandlers: Map<
     string,
@@ -37,6 +38,8 @@ export class PluginManager {
       ) => Promise<void> | void;
       description?: string;
       source?: string;
+      scope?: string;
+      permission?: string;
     }
   > = new Map();
   // 系统插件元数据列表
@@ -170,6 +173,8 @@ export class PluginManager {
    * @param client TDLib 客户端实例
    */
   async loadPlugins(client: Client) {
+    this.client = client;
+
     // 扫描外部插件目录
     await this.scanPluginDir(this.pluginDir, client, "插件目录", false);
 
@@ -334,6 +339,8 @@ export class PluginManager {
                   handler: safeHandler,
                   description: d.description || "",
                   source: modulePath,
+                  scope: d.scope,
+                  permission: d.permission,
                 });
                 this.internalPlugins.push({ name, path: modulePath });
               }
@@ -374,6 +381,8 @@ export class PluginManager {
               handler: safeFn,
               description: (mod.description as string) || "",
               source: modulePath,
+              scope: mod.scope,
+              permission: mod.permission,
             });
             this.internalPlugins.push({ name: baseName, path: modulePath });
             return;
@@ -408,6 +417,8 @@ export class PluginManager {
               handler: safeHandler,
               description: d.description || "",
               source: modulePath,
+              scope: d.scope,
+              permission: d.permission,
             });
             this.internalPlugins.push({ name, path: modulePath });
             logger.debug(`[插件管理] 系统插件命令 ${name} 来自 ${modulePath}`);
@@ -431,12 +442,16 @@ export class PluginManager {
     name: string;
     description?: string;
     source?: string;
+    scope?: string;
+    permission?: string;
   }> {
     return Array.from(this.internalCmdHandlers.entries()).map(
       ([name, info]) => ({
         name,
         description: info.description,
         source: info.source,
+        scope: info.scope,
+        permission: info.permission,
       })
     );
   }
@@ -872,6 +887,135 @@ export class PluginManager {
   }
 
   /**
+   * 检查聊天类型
+   * @param client TDLib 客户端
+   * @param chatId 聊天 ID
+   * @returns 聊天类型：'private' | 'group' | 'channel'
+   */
+  private async getChatType(
+    client: Client,
+    chatId: number
+  ): Promise<"private" | "group" | "channel"> {
+    try {
+      const { isPrivate, isGroup, isChannel } = await import(
+        "@TDLib/function/index.ts"
+      );
+
+      if (await isPrivate(client, chatId)) return "private";
+      if (await isChannel(client, chatId)) return "channel";
+      if (await isGroup(client, chatId)) return "group";
+
+      return "private"; // 默认返回私聊
+    } catch (e) {
+      logger.error(`[插件管理] 获取聊天类型失败:`, e);
+      return "private";
+    }
+  }
+
+  /**
+   * 检查用户权限
+   * @param userId 用户 ID
+   * @returns 权限级别：'owner' | 'admin' | 'user'
+   */
+  private async getUserPermission(
+    userId: number
+  ): Promise<"owner" | "admin" | "user"> {
+    try {
+      const adminConfig = await getConfig("admin");
+
+      // 检查是否为超级管理员
+      if (adminConfig?.super_admin === userId) {
+        return "owner";
+      }
+
+      // 检查是否为管理员
+      if (adminConfig?.admin && Array.isArray(adminConfig.admin)) {
+        if (adminConfig.admin.includes(userId)) {
+          return "admin";
+        }
+      }
+
+      return "user";
+    } catch (e) {
+      logger.error(`[插件管理] 获取用户权限失败:`, e);
+      return "user";
+    }
+  }
+
+  /**
+   * 验证命令权限和场景
+   * @param commandName 命令名称
+   * @param scope 命令场景要求（字符串或字符串数组）
+   * @param permission 命令权限要求
+   * @param chatType 当前聊天类型
+   * @param userPermission 用户权限
+   * @returns 是否允许执行
+   */
+  private async validateCommandAccess(
+    commandName: string,
+    scope: string | string[] = "all",
+    permission: string = "all",
+    chatType: "private" | "group" | "channel",
+    userPermission: "owner" | "admin" | "user"
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    // 从配置文件读取覆盖设置
+    try {
+      const configData = await getConfig("config");
+      if (configData?.cmd?.permissions?.[commandName]) {
+        const override = configData.cmd.permissions[commandName];
+        if (override.scope) scope = override.scope;
+        if (override.permission) permission = override.permission;
+        logger.debug(
+          `[插件管理] 命令 ${commandName} 使用配置文件覆盖: scope=${JSON.stringify(
+            scope
+          )}, permission=${permission}`
+        );
+      }
+    } catch (e) {
+      logger.debug(`[插件管理] 读取命令权限配置失败:`, e);
+    }
+
+    // 验证场景
+    // 处理数组情况
+    const scopeArray = Array.isArray(scope) ? scope : [scope];
+
+    // 如果包含 "all"，则允许所有场景
+    if (!scopeArray.includes("all")) {
+      // 检查当前聊天类型是否在允许的场景列表中
+      if (!scopeArray.includes(chatType)) {
+        // 生成友好的错误提示
+        const scopeNames: Record<string, string> = {
+          private: "私聊",
+          group: "群组",
+          channel: "频道",
+        };
+
+        const allowedNames = scopeArray
+          .filter((s) => s !== "all")
+          .map((s) => scopeNames[s] || s)
+          .join("、");
+
+        return {
+          allowed: false,
+          reason: `此命令只能在${allowedNames}中使用`,
+        };
+      }
+    }
+
+    // 验证权限
+    if (permission !== "all") {
+      if (permission === "owner" && userPermission !== "owner") {
+        return { allowed: false, reason: "此命令只有超级管理员可以使用" };
+      }
+      if (permission === "admin" && userPermission === "user") {
+        return { allowed: false, reason: "此命令需要管理员权限" };
+      }
+    }
+
+    return { allowed: true };
+  }
+
+  /**
    * 处理TDLib更新
    * @param update 更新对象
    */
@@ -981,18 +1125,53 @@ export class PluginManager {
 
     logger.debug(`[插件管理] 处理命令: ${prefix}${commandName}`, args);
 
+    // 确保 client 已初始化
+    if (!this.client) {
+      logger.error(`[插件管理] Client 未初始化`);
+      return;
+    }
+
+    // 获取聊天类型
+    const chatType = await this.getChatType(
+      this.client,
+      message.message.chat_id
+    );
+
+    // 获取用户权限
+    let userId: number | null = null;
+    if (message.message.sender_id?._ === "messageSenderUser") {
+      userId = message.message.sender_id.user_id;
+    }
+    const userPermission = userId
+      ? await this.getUserPermission(userId)
+      : "user";
+
     // 优先查找自带命令
     const internal = this.internalCmdHandlers.get(commandName);
     if (internal) {
       try {
+        // 验证权限和场景（使用命令定义的 scope 和 permission，或配置覆盖）
+        const validation = await this.validateCommandAccess(
+          commandName,
+          internal.scope || "all",
+          internal.permission || "all",
+          chatType,
+          userPermission
+        );
+
+        if (!validation.allowed) {
+          const { sendMessage } = await import("@TDLib/function/message.ts");
+          await sendMessage(this.client, message.message.chat_id, {
+            text: `❌ ${validation.reason || "无权限执行此命令"}`,
+          });
+          return;
+        }
+
         await internal.handler(message, args);
         return;
-      } catch (configError) {
-        logger.warn(
-          `[插件管理] 获取 me 配置失败,忽略带 @ 的命令:`,
-          configError
-        );
-        return; // 带 @ 的命令不处理
+      } catch (e) {
+        logger.error(`[插件管理] 执行内部命令 ${commandName} 出错:`, e);
+        return;
       }
     }
 
@@ -1001,14 +1180,20 @@ export class PluginManager {
       const commandDef = pluginInfo.instance.cmdHandlers[commandName];
       if (commandDef) {
         try {
-          try {
-            await commandDef.handler(message, args);
-          } catch (err) {
-            logger.error(
-              `[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`,
-              err
-            );
+          // 验证权限和场景
+          const validation = await this.validateCommandAccess(
+            commandName,
+            commandDef.scope || "all",
+            commandDef.permission || "all",
+            chatType,
+            userPermission
+          );
+
+          if (!validation.allowed) {
+            return;
           }
+
+          await commandDef.handler(message, args);
           return;
         } catch (e) {
           logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);

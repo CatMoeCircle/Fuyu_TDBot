@@ -22,6 +22,17 @@ export type CmdConfig = {
   cmd?: {
     help?: string;
     start?: string;
+    permissions?: {
+      [commandName: string]: {
+        scope?:
+          | "all"
+          | "private"
+          | "group"
+          | "channel"
+          | ("private" | "group" | "channel")[];
+        permission?: "all" | "admin" | "owner";
+      };
+    };
   };
 };
 

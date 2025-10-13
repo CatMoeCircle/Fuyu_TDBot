@@ -19,6 +19,8 @@ export default class getlog extends Plugin {
     this.cmdHandlers = {
       log: {
         description: "获取日志文件(该命令只能在私聊中使用)",
+        permission: "admin",
+        scope: "private",
         handler: async (updateNewMessage, args) => {
           const chatId = updateNewMessage.message.chat_id;
 

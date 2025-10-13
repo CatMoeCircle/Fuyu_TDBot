@@ -2,6 +2,30 @@ import type { Client } from "tdl";
 import type { updateNewMessage, Update } from "tdlib-types";
 
 /**
+ * 命令使用场景
+ * - `all`: 全部场景都可使用（默认）
+ * - `private`: 只能在私聊中使用
+ * - `group`: 只能在群组中使用
+ * - `channel`: 只能在频道中使用
+ */
+export type CommandScopeType = "all" | "private" | "group" | "channel";
+
+/**
+ * 命令场景配置
+ * - 单个字符串: 指定一个场景
+ * - 字符串数组: 指定多个场景（命令可以在这些场景中的任一个使用）
+ */
+export type CommandScope = CommandScopeType | CommandScopeType[];
+
+/**
+ * 命令权限
+ * - `all`: 所有用户都可使用（默认）
+ * - `admin`: 管理员和超级管理员都可使用
+ * - `owner`: 只有超级管理员可使用
+ */
+export type CommandPermission = "all" | "admin" | "owner";
+
+/**
  * 命令定义。
  *
  * 插件可以通过在 `cmdHandlers` 中注册命令来处理文本或交互命令。
@@ -9,6 +33,8 @@ import type { updateNewMessage, Update } from "tdlib-types";
  * // 注册一个命令
  * cmdHandlers['ping'] = {
  *   description: '响应 pong',
+ *   scope: 'all',  // 可选：指定使用场景
+ *   permission: 'all',  // 可选：指定权限要求
  *   handler: async (message, args) => { // ... }
  * };
  */
@@ -21,6 +47,29 @@ export interface CommandDef {
    * @param args 可选的命令参数数组（如果命令解析为参数）
    */
   handler: (message: updateNewMessage, args?: string[]) => Promise<void> | void;
+  /**
+   * 可选：命令使用场景
+   * - `"all"`: 所有场景都能使用
+   * - `"private"`: 只能在私聊中使用
+   * - `"group"`: 只能在群组中使用
+   * - `"channel"`: 只能在频道中使用
+   * 可组合使用
+   * - 示例`["private", "channel"]`: 只能在私聊和频道中使用
+   * - 示例`["group", "channel"]`: 只能在群组和频道中使用
+   * @default "all"
+   * @example
+   * scope: "private" // 只能私聊
+   * scope: ["private", "group"] // 私聊和群组都可以
+   */
+  scope?: CommandScope;
+  /**
+   * 可选：命令权限要求
+   * - `owner`: 只有超级管理员能使用
+   * - `admin`: 管理员和超级管理员都能使用
+   * - `all`: 所有人都能使用
+   * @default "all"
+   */
+  permission?: CommandPermission;
 }
 
 /**

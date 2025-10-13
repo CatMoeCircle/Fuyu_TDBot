@@ -17,6 +17,8 @@ export default class ConfigCommand extends Plugin {
     this.cmdHandlers = {
       config: {
         description: "配置管理命令(该命令只能在私聊中使用)",
+        scope: "private",
+        permission: "admin",
         handler: async (updateNewMessage, args) => {
           const chatId = updateNewMessage.message.chat_id;
 
@@ -50,7 +52,8 @@ export default class ConfigCommand extends Plugin {
                 "• `list` - 查看所有配置\n" +
                 "• `get` - 查看配置详情\n" +
                 "• `set <配置项> <值>` - 设置配置值\n" +
-                "• `delete <配置项>` - 删除配置值\n\n" +
+                "• `delete <配置项>` - 删除配置值\n" +
+                "• `permission <命令名> <场景> <权限>` - 设置命令权限\n\n" +
                 "*可修改的配置：*\n" +
                 "• `PREFIXES` - 命令前缀设置\n" +
                 "• `helpText` - 自定义帮助命令文本\n" +
@@ -62,7 +65,14 @@ export default class ConfigCommand extends Plugin {
                 "`/config set helpText 这是自定义的帮助文本\\n支持换行符\\n多行显示`\n" +
                 "`/config set startText 欢迎使用我的机器人\\n这是第二行`\n" +
                 "`/config delete helpText`\n" +
-                "`/config delete startText`\n\n" +
+                "`/config delete startText`\n" +
+                "`/config permission help private owner` - help命令只能私聊且仅主人使用\n" +
+                "`/config permission ping all all` - ping命令无限制\n" +
+                "`/config permission status private,group admin` - status命令只能在私聊和群组中由管理员使用\n" +
+                "`/config permission announce group,channel owner` - announce命令只能在群组和频道中由主人使用\n\n" +
+                "💡 **场景选项：** all(全部) | private(私聊) | group(群组) | channel(频道)\n" +
+                "💡 **多场景：** 用逗号分隔，如 `private,channel` 表示私聊和频道都可用\n" +
+                "💡 **权限选项：** all(全部) | admin(管理员) | owner(主人)\n" +
                 "💡 **换行提示：** 在文本中使用 `\\n` 来表示换行符",
             });
             return;
@@ -95,11 +105,27 @@ export default class ConfigCommand extends Plugin {
               }
               await this.handleDeleteConfig(chatId, args[1]);
               break;
+            case "permission":
+              if (args.length < 4) {
+                await sendMessage(this.client, chatId, {
+                  text:
+                    "❌ *参数错误*\n\n" +
+                    "使用方法：`/config permission <命令名> <场景> <权限>`\n\n" +
+                    "**场景选项：** all | private | group | channel\n" +
+                    "**权限选项：** all | admin | owner\n\n" +
+                    "示例：\n" +
+                    "`/config permission help private owner` - help命令只能私聊且仅主人使用\n" +
+                    "`/config permission ping all all` - ping命令无限制",
+                });
+                return;
+              }
+              await this.handleSetPermission(chatId, args[1], args[2], args[3]);
+              break;
             default:
               await sendMessage(this.client, chatId, {
                 text:
                   "❌ *无效的操作*\n\n" +
-                  "支持的操作：`list`、`get`、`set`、`delete`\n\n" +
+                  "支持的操作：`list`、`get`、`set`、`delete`、`permission`\n\n" +
                   "使用 `/config` 查看详细帮助。",
               });
           }
@@ -131,15 +157,28 @@ export default class ConfigCommand extends Plugin {
         }\n`;
         message += `• 自定义start文本: ${
           configData.cmd?.start ? "已设置 (使用 /start 查看)" : "未设置"
-        }\n\n`;
+        }\n`;
+
+        // 显示命令权限覆盖
+        if (
+          configData.cmd?.permissions &&
+          Object.keys(configData.cmd.permissions).length > 0
+        ) {
+          const count = Object.keys(configData.cmd.permissions).length;
+          message += `• 命令权限覆盖: ${count} 个命令已配置权限\n`;
+        } else {
+          message += `• 命令权限覆盖: 未设置\n`;
+        }
+        message += "\n";
       } else {
         message += "⌨️ **配置 (config):**\n";
         message += "• 命令前缀: 未设置\n";
         message += "• 自定义帮助文本: 未设置\n";
-        message += "• 自定义start文本: 未设置\n\n";
+        message += "• 自定义start文本: 未设置\n";
+        message += "• 命令权限覆盖: 未设置\n\n";
       }
 
-      message += "💡 **提示：** 使用 `/config get <类型>` 查看详细配置";
+      message += "💡 **提示：** 使用 `/config get` 查看详细配置";
 
       await sendMessage(this.client, chatId, {
         text: message,
@@ -180,6 +219,42 @@ export default class ConfigCommand extends Plugin {
       message += `• 自定义start文本: ${
         config.cmd?.start ? "已设置 (使用 /start 查看)" : "未设置"
       }\n`;
+
+      // 显示命令权限覆盖详情
+      if (
+        config.cmd?.permissions &&
+        Object.keys(config.cmd.permissions).length > 0
+      ) {
+        message += `\n🔒 **命令权限覆盖:**\n`;
+
+        const scopeDesc: Record<string, string> = {
+          all: "全部",
+          private: "私聊",
+          group: "群组",
+          channel: "频道",
+        };
+
+        const permissionDesc: Record<string, string> = {
+          all: "所有用户",
+          admin: "管理员",
+          owner: "主人",
+        };
+
+        for (const [cmd, perm] of Object.entries(config.cmd.permissions)) {
+          const scope = perm.scope || "all";
+          const permission = perm.permission || "all";
+
+          // 格式化场景显示（处理数组情况）
+          const scopeDisplay = Array.isArray(scope)
+            ? scope.map((s) => scopeDesc[s] || s).join("、")
+            : scopeDesc[scope] || scope;
+
+          const permDisplay = permissionDesc[permission] || permission;
+          message += `• \`${cmd}\`: ${scopeDisplay} | ${permDisplay}\n`;
+        }
+      } else {
+        message += `• 命令权限覆盖: 未设置\n`;
+      }
 
       await sendMessage(this.client, chatId, {
         text: message,
@@ -373,6 +448,127 @@ export default class ConfigCommand extends Plugin {
       logger.error(`删除配置 config.${field} 时出错:`, error);
       await sendMessage(this.client, chatId, {
         text: "❌ **删除配置时发生错误**\n\n请稍后重试。",
+      });
+    }
+  }
+
+  /**
+   * 处理设置命令权限
+   */
+  private async handleSetPermission(
+    chatId: number,
+    commandName: string,
+    scopeInput: string,
+    permission: string
+  ) {
+    try {
+      const { upsertConfig, getConfig } = await import("@db/config.ts");
+
+      // 禁止覆盖 config 命令的权限
+      if (commandName === "config") {
+        await sendMessage(this.client, chatId, {
+          text:
+            "❌ **禁止操作**\n\n" +
+            "为了安全起见,`config` 命令的权限无法被覆盖。\n\n" +
+            "💡 **说明:** config 命令始终只能在私聊中由管理员使用,这是系统默认保护设置。",
+        });
+        return;
+      }
+
+      const validScopes = ["all", "private", "group", "channel"];
+
+      // 解析场景参数 - 支持逗号分隔的多个场景
+      let scope: string | string[];
+      const scopeParts = scopeInput.split(",").map((s) => s.trim());
+
+      // 验证所有场景参数
+      for (const s of scopeParts) {
+        if (!validScopes.includes(s)) {
+          await sendMessage(this.client, chatId, {
+            text: `❌ **无效的场景参数**\n\n场景必须是以下之一：${validScopes.join(
+              ", "
+            )}\n\n无效值：\`${s}\`\n\n💡 多个场景请用逗号分隔，例如：\`private,channel\``,
+          });
+          return;
+        }
+      }
+
+      // 如果只有一个场景或包含 all，使用字符串；否则使用数组
+      if (scopeParts.length === 1 || scopeParts.includes("all")) {
+        scope = scopeParts[0];
+      } else {
+        scope = scopeParts;
+      }
+
+      // 验证权限参数
+      const validPermissions = ["all", "admin", "owner"];
+      if (!validPermissions.includes(permission)) {
+        await sendMessage(this.client, chatId, {
+          text: `❌ **无效的权限参数**\n\n权限必须是以下之一：${validPermissions.join(
+            ", "
+          )}\n\n当前值：${permission}`,
+        });
+        return;
+      }
+
+      // 获取当前配置
+      const currentConfig = await getConfig("config");
+
+      // 构建更新数据
+      const updateData: any = {
+        cmd: {
+          ...currentConfig?.cmd,
+          permissions: {
+            ...currentConfig?.cmd?.permissions,
+            [commandName]: {
+              scope,
+              permission,
+            },
+          },
+        },
+      };
+
+      await upsertConfig("config", updateData);
+
+      // 场景和权限的中文描述
+      const scopeDesc: Record<string, string> = {
+        all: "全部场景",
+        private: "私聊",
+        group: "群组",
+        channel: "频道",
+      };
+
+      const permissionDesc: Record<string, string> = {
+        all: "所有用户",
+        admin: "管理员",
+        owner: "超级管理员",
+      };
+
+      // 格式化场景显示
+      const scopeDisplay = Array.isArray(scope)
+        ? scope.map((s) => scopeDesc[s] || s).join("、")
+        : scopeDesc[scope] || scope;
+
+      await sendMessage(this.client, chatId, {
+        text:
+          `✅ **命令权限设置成功**\n\n` +
+          `命令: \`${commandName}\`\n` +
+          `场景: ${scopeDisplay} (\`${
+            Array.isArray(scope) ? scope.join(",") : scope
+          }\`)\n` +
+          `权限: ${permissionDesc[permission]} (\`${permission}\`)\n\n` +
+          `💡 **提示:** 这些设置将覆盖命令的默认权限设置`,
+      });
+
+      logger.info(
+        `命令权限已设置: ${commandName} - scope=${JSON.stringify(
+          scope
+        )}, permission=${permission}`
+      );
+    } catch (error) {
+      logger.error(`设置命令权限时出错:`, error);
+      await sendMessage(this.client, chatId, {
+        text: "❌ **设置命令权限时发生错误**\n\n请稍后重试。",
       });
     }
   }
