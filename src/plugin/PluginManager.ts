@@ -173,15 +173,37 @@ export class PluginManager {
     // 扫描外部插件目录
     await this.scanPluginDir(this.pluginDir, client, "插件目录", false);
 
-    // 扫描系统插件目录（例如项目内的 `src/cmd`），系统插件单独注册为命令
+    // 扫描系统插件目录(例如项目内的 `src/cmd`),系统插件单独注册为命令
     await this.scanPluginDir(
       this.internalPluginDir,
       client,
       "系统插件目录",
       true
     );
+    logger.info("-------------------------------");
+
+    // 统计插件信息
+    let totalCommands = this.internalCmdHandlers.size;
+    let totalUpdateHandlers = 0;
+    let totalRunHandlers = 0;
+
+    for (const pluginInfo of this.plugins.values()) {
+      totalCommands += Object.keys(
+        pluginInfo.instance.cmdHandlers || {}
+      ).length;
+      totalUpdateHandlers += Object.keys(
+        pluginInfo.instance.updateHandlers || {}
+      ).length;
+      totalRunHandlers += Object.keys(
+        pluginInfo.instance.runHandlers || {}
+      ).length;
+    }
 
     logger.info(`[插件管理] 已加载 ${this.plugins.size} 个插件`);
+    logger.info(`[插件管理] 已注册 ${totalCommands} 个命令`);
+    logger.info(`[插件管理] 已注册 ${totalUpdateHandlers} 个更新处理器`);
+    logger.info(`[插件管理] 已注册 ${totalRunHandlers} 个定时脚本`);
+    logger.info("-------------------------------");
 
     // 设置更新处理器
     client.on("update", (update) => {
@@ -314,9 +336,6 @@ export class PluginManager {
                   source: modulePath,
                 });
                 this.internalPlugins.push({ name, path: modulePath });
-                logger.debug(
-                  `[插件管理] 系统插件命令 ${name} 来自 ${modulePath} (from class)`
-                );
               }
             }
             return;
@@ -357,9 +376,6 @@ export class PluginManager {
               source: modulePath,
             });
             this.internalPlugins.push({ name: baseName, path: modulePath });
-            logger.debug(
-              `[插件管理] 系统插件 ${baseName} 已注册为命令 (from ${modulePath})`
-            );
             return;
           }
         } catch (hfErr) {
@@ -453,7 +469,23 @@ export class PluginManager {
     let module: any;
     try {
       module = await import(moduleURL);
-    } catch (impErr) {
+    } catch (impErr: any) {
+      // 检查是否是缺少包的错误
+      if (impErr.code === "ERR_MODULE_NOT_FOUND") {
+        const errorMessage = impErr.message || "";
+        // 尝试从错误信息中提取包名
+        const packageMatch = errorMessage.match(
+          /Cannot find package '([^']+)'/
+        );
+        if (packageMatch) {
+          const packageName = packageMatch[1];
+          const pluginName = path.basename(modulePath);
+          logger.info(`-------------------------------`);
+          logger.error(`[插件管理] 插件 ${pluginName} 缺少包 ${packageName}`);
+          logger.error(`[插件管理] 请运行 pnpm install 安装依赖`);
+          return;
+        }
+      }
       logger.error(`[插件管理] 导入插件模块 ${modulePath} 失败:`, impErr);
       return;
     }
@@ -559,10 +591,6 @@ export class PluginManager {
     };
 
     this.plugins.set(pluginInstance.name, pluginInfo);
-    logger.info(
-      `[插件管理] 插件 ${pluginInstance.name} v${pluginInstance.version} 加载成功`
-    );
-
     // 如果插件包含 runHandlers，则立即设置调度
     try {
       this.setupPluginRuns(pluginInstance.name, pluginInstance);
