@@ -93,3 +93,8 @@ declare module "*.text?raw" {
   const raw: string;
   export default raw;
 }
+
+declare module "*.vue?raw" {
+  const raw: string;
+  export default raw;
+}
