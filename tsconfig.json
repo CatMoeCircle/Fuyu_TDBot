@@ -21,6 +21,6 @@
       "@db/*": ["./Database/*"]
     }
   },
-  "include": ["src", "src/types", "plugins"],
+  "include": ["src", "src/types", "plugins", "preview"],
   "exclude": ["node_modules", "dist"]
 }

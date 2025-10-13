@@ -975,15 +975,12 @@ export class PluginManager {
       logger.debug(`[插件管理] 读取命令权限配置失败:`, e);
     }
 
-    // 验证场景
-    // 处理数组情况
     const scopeArray = Array.isArray(scope) ? scope : [scope];
 
     // 如果包含 "all"，则允许所有场景
     if (!scopeArray.includes("all")) {
       // 检查当前聊天类型是否在允许的场景列表中
       if (!scopeArray.includes(chatType)) {
-        // 生成友好的错误提示
         const scopeNames: Record<string, string> = {
           private: "私聊",
           group: "群组",
@@ -1020,7 +1017,6 @@ export class PluginManager {
    * @param update 更新对象
    */
   private async handleUpdate(update: Update) {
-    // 处理新消息更新，检查是否为命令
     if (update._ === "updateNewMessage") {
       await this.handleCommand(update);
     }
@@ -1125,7 +1121,6 @@ export class PluginManager {
 
     logger.debug(`[插件管理] 处理命令: ${prefix}${commandName}`, args);
 
-    // 确保 client 已初始化
     if (!this.client) {
       logger.error(`[插件管理] Client 未初始化`);
       return;
