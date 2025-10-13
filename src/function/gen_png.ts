@@ -26,16 +26,16 @@ interface FontOptions {
 
 export async function generatePng(
   options: {
-    width: number;
-    height: number;
+    width: number | "auto";
+    height: number | "auto";
     fonts?: FontOptions[];
   },
   vuetemplateStr: string,
   props?: Record<string, any>
 ): Promise<string> {
   const opt = defineSatoriConfig({
-    width: options.width || 800,
-    height: options.height || 600,
+    width: (options.width as number) || 800,
+    height: (options.height as number) || 600,
     fonts: [
       {
         name: "Noto Sans SC",
