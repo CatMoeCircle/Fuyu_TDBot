@@ -3,7 +3,7 @@ import { Resvg } from "@resvg/resvg-js";
 import fs from "fs";
 import path from "path";
 
-const fontPath = path.join("C:\\Windows\\Fonts", "arial.ttf");
+const fontPath = path.join("C:\\Windows\\Fonts", "simhei.ttf");
 
 export async function generatePng(
   vuetemplateStr: string,
