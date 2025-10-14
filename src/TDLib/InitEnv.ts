@@ -5,9 +5,15 @@ import https from "https";
 import { execSync } from "child_process";
 import { input, confirm } from "@inquirer/prompts";
 import logger from "@log/index.ts";
-import { createWriteStream } from "fs";
+import { createWriteStream, readFileSync } from "fs";
 
 export default async function initEnv() {
+  const { version } = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), {
+      encoding: "utf-8",
+    })
+  );
+  process.env.APP_VERSION = version;
   // 检查是否为安卓系统
   await checkAndroidTDLib();
 
