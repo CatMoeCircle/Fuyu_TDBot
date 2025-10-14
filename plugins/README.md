@@ -48,12 +48,18 @@ import readmeText from "../README.md?raw";
 ### 2.1 必需字段（实例属性）
 
 - `name: string`：插件唯一名称。
+- `type: "user" | "bot" | "general"`：插件适用的运行主体。
 - `version: string`：插件版本号。
 - `description: string`：简短描述。
 
+`type` 用来指明插件将调用的 TDLib 能力集：
+- `user`：依赖客户端账号特权（如删除 48 小时前消息）。
+- `bot`：依赖 Bot API 特性（如内联按钮）。
+- `general`：两侧均可使用，推荐默认使用。
+
 ### 2.2 常用可覆盖字段（默认均为 `{}`）
 
-- `cmdHandlers: Record<string, CommandDef>`：命令路由表，仅在需要响应命令时赋值。
+- `cmdHandlers: Record<string, CommandDef>`：命令路由表，仅在需要响应命令时赋值。单个命令可进一步声明 `description`、`handler`、`scope` 与 `permission`。
 - `updateHandlers: Record<string, UpdateDef>`：TDLib 更新处理表，仅在需要拦截更新时赋值。
 
 ### 2.3 可选生命周期 & 运行任务
@@ -108,7 +114,9 @@ export default class HelloPlugin extends Plugin {
 		this.cmdHandlers = {
 			hello: {
 				description: "回复 '你好，世界！'",
-				handler: async (updateNewMessage,args) => {
+				scope:"all"
+				permission:"all"
+				handler: async (updateNewMessage, args) => {
 					try {
 						await this.client.invoke({
 							_: "sendMessage",
@@ -156,6 +164,10 @@ export default class HelloPlugin extends Plugin {
 	```ts
 	(message: updateNewMessage, args?: string[]) => Promise<void> | void
 	```
+- `scope` 用于限定命令触发场景，可选值为 `"all" | "private" | "group" | "channel"` 或这些值组成的数组。
+- `permission` 用于限制命令可见，默认 `all`，可设置为 `admin`（管理员及以上）或 `owner`（仅超级管理员）。
+
+> 提示：未显式配置时，命令默认在所有场景且对所有用户可用。
 
 ### 4.2 更新
 
