@@ -29,6 +29,8 @@ export async function generatePng(
     width: number | "auto";
     height: number | "auto";
     fonts?: FontOptions[];
+    debug?: boolean;
+    quality?: number;
   },
   vuetemplateStr: string,
   props?: Record<string, any>
@@ -45,20 +47,14 @@ export async function generatePng(
       },
       ...(options.fonts || []),
     ],
+    debug: options.debug || false,
     props,
   });
 
   const strSVG = await satoriVue(opt, vuetemplateStr);
 
   const resvg = new Resvg(strSVG, {
-    fitTo: {
-      mode: "original",
-    },
-    background: "transparent",
-    font: {
-      loadSystemFonts: false,
-    },
-    logLevel: "error",
+    fitTo: { mode: "zoom", value: options.quality || 1 },
   });
 
   const pngData = resvg.render().asPng();
