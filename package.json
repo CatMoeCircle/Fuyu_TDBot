@@ -8,7 +8,9 @@
     "dev": "nodemon",
     "lint": "eslint .",
     "start": "node --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\" src/index.ts",
-    "preview:dev": "vite ./templates_dev"
+    "preview:dev": "vite ./templates_dev",
+    "pm2:start": "pm2 start src/index.ts --name fuyu-tdbot --interpreter node --node-args=\"--import \\\"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\\\"\"",
+    "pm2:stop": "pm2 stop fuyu-tdbot"
   },
   "keywords": [],
   "author": "",
@@ -41,6 +43,9 @@
     "vue": "^3.5.22",
     "winston": "^3.17.0",
     "x-satori": "^0.4.0"
+  },
+  "optionalDependencies": {
+    "pm2": "^6.0.13"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -47,7 +47,7 @@ git clone https://github.com/CatMoeCircle/Fuyu_TDBot.git
 cd Fuyu_TDBot
 
 # 安装依赖
-pnpm install
+pnpm install -P
 
 # 启动
 pnpm start
