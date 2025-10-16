@@ -25,8 +25,9 @@ async function main() {
           logger.error(`卸载插件 ${plugin.name} 时出错:`, error);
         }
       }
-
-      logger.info("Bot已关闭");
+      await client.close();
+      logger.info("所有插件已卸载");
+      logger.info("清理完成，Bot已安全关闭");
       process.exit(0);
     });
   } catch (error) {
