@@ -259,7 +259,7 @@ export async function getMessageLink(
  * @param set_id - 贴纸包的ID。
  * @returns 包含贴纸包详细信息的对象
  */
-export async function getStickerSet(client: Client, set_id: number) {
+export async function getStickerSet(client: Client, set_id: string) {
   try {
     const StickerSet = await client.invoke({
       _: "getStickerSet",
