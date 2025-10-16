@@ -494,7 +494,13 @@ export class PluginManager {
         );
         if (packageMatch) {
           const packageName = packageMatch[1];
-          const pluginName = path.basename(modulePath);
+          // 获取插件名称：优先使用文件夹名作为fallback
+          let pluginName = path.basename(modulePath);
+          if (pluginName === "index.ts" || pluginName === "index.js") {
+            pluginName = path.basename(path.dirname(modulePath));
+          } else {
+            pluginName = pluginName.replace(/\.(ts|js)$/i, "");
+          }
           logger.info(`-------------------------------`);
           logger.error(`[插件管理] 插件 ${pluginName} 缺少包 ${packageName}`);
           logger.error(`[插件管理] 请运行 pnpm install 安装依赖`);
