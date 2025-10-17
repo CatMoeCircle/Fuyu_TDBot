@@ -1107,7 +1107,7 @@ export class PluginManager {
       try {
         const meConfig = await getConfig("me");
         if (meConfig && meConfig.info) {
-          const myUsername = meConfig.info.usernames?.editable_username;
+          const myUsername = meConfig.info.usernames?.active_usernames?.[0];
           if (myUsername && myUsername !== targetUsername) {
             // @的不是自己，忽略此命令
             logger.debug(
