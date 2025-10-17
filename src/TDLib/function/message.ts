@@ -226,12 +226,12 @@ export async function deleteMessage(
           revoke: revoke,
         });
       } catch (error) {
-        logger.error("deleteMessage: 删除消息失败", error, chat_id, id);
+        logger.warn("deleteMessage: 删除消息失败", error, chat_id, id);
         // 继续删除其他消息
       }
     }
   } catch (error) {
-    logger.error("deleteMessage: 删除消息失败", error, chat_id, message_ids);
+    logger.warn("deleteMessage: 删除消息失败", error, chat_id, message_ids);
   }
   return;
 }
