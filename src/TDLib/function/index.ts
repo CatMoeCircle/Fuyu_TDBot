@@ -679,7 +679,7 @@ export async function parseTextEntities(
  */
 
 // --- 1. 用于转义的工具函数 ---
-const ESCAPE_CHARS = /[_*[\]()~`>#+\-=|{}.!]/g;
+const ESCAPE_CHARS = /[_*[\]()~`>#+\-=|{}.!\\]/g;
 const ESCAPE_CHARS_CODE = /[_*[\]()~`>#+\-=|{}.!\\`]/g;
 
 function escapeMarkdownV2(text: string): string {
@@ -899,7 +899,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
       const isOrdered = hasOrdered(node) && node.ordered;
       return node.children
         .map((listItem, i) => {
-          const prefix = isOrdered ? `${i + 1}\\. ` : "- ";
+          const prefix = isOrdered ? `${i + 1}\\. ` : "\\- ";
           if (!hasChildren(listItem)) return prefix;
           const itemContent = listItem.children
             .map((contentNode) => toTelegram(contentNode, original).trim())
