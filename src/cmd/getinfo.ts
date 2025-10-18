@@ -210,7 +210,7 @@ export default class getinfo extends Plugin {
     // 命令处理器：当收到 /info 时触发
     this.cmdHandlers = {
       info: {
-        description: "获取用户/消息详细内容",
+        description: "获取 用户/消息 详细内容",
         handler: async (updateNewMessage, _args) => {
           try {
             const sections: string[] = [];

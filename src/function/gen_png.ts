@@ -2,6 +2,7 @@ import { defineSatoriConfig, satoriVue } from "x-satori/vue";
 import { Resvg } from "@resvg/resvg-js";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import NotoSansSC from "../fonts/NotoSansSC-Regular.ttf?file";
 
 // 直接使用路径引用字体文件
@@ -31,6 +32,7 @@ export async function generatePng(
     fonts?: FontOptions[];
     debug?: boolean;
     quality?: number;
+    imgname?: string;
   },
   vuetemplateStr: string,
   props?: Record<string, any>
@@ -59,7 +61,11 @@ export async function generatePng(
 
   const pngData = resvg.render().asPng();
   const outputDir = path.join(process.cwd(), "cache");
-  const outputPath = path.join(outputDir, "output.png");
+
+  // 如果没有指定文件名,使用随机hash
+  const fileName =
+    options.imgname || `${crypto.randomBytes(16).toString("hex")}.png`;
+  const outputPath = path.join(outputDir, fileName);
 
   // 确保目录存在
   await fs.promises.mkdir(outputDir, { recursive: true });

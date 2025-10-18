@@ -2,7 +2,13 @@ import type { Client } from "tdl";
 import type { updateNewMessage } from "tdlib-types";
 import logger from "@log/index.ts";
 import type { PluginInfo } from "@plugin/PluginManager.ts";
+import { generatePng } from "@function/gen_png.ts";
+import template from "./vue/help.vue?raw";
 import { sendMessage } from "@TDLib/function/message.ts";
+import { createHash } from "crypto";
+import { getCacheByHash } from "@db/query.ts";
+import { saveCache } from "@db/update.ts";
+import { deleteCacheByHash } from "@db/delete.ts";
 
 export const description = "帮助命令 列出所有可用命令";
 export const scope = "all"; // 可选：可以设置为 "private" | "group" | "channel" | "all"
@@ -24,11 +30,10 @@ export function createHelpHandler(
       const { getConfig } = await import("@db/config.ts");
       const config = await getConfig("config");
 
-      // 如果存在自定义帮助文本,直接使用
       if (config?.cmd?.help) {
         try {
           logger.debug("使用自定义帮助文本:", JSON.stringify(config.cmd.help));
-          // 对于自定义帮助文本，使用纯文本模式发送以保持换行符
+
           await client.invoke({
             _: "sendMessage",
             chat_id: update.message.chat_id,
@@ -52,133 +57,161 @@ export function createHelpHandler(
         }
       }
 
-      // 否则使用默认的帮助列表
       const plugins = getPlugins();
 
-      const lines: string[] = [];
+      const internalCommands = getInternalCommands ? getInternalCommands() : [];
 
-      lines.push("✨ 命令帮助列表 ✨\n");
+      const singleCommandList: Array<{
+        name: string;
+        cmd: string;
+        doc: string;
+      }> = [];
 
-      // 权限和场景的图标映射
-      const scopeIcons: Record<string, string> = {
-        all: "🌍",
-        private: "💬",
-        group: "👥",
-        channel: "📢",
-      };
+      const multiCommandList: Array<{
+        name: string;
+        version: string;
+        description: string;
+        cmdHandlers: Array<{
+          cmd: string;
+          description: string;
+        }>;
+      }> = [];
 
-      const permissionIcons: Record<string, string> = {
-        all: "✅",
-        admin: "🛡️",
-        owner: "👑",
-      };
+      for (const plugin of plugins) {
+        const cmdHandlers = plugin.instance?.cmdHandlers || {};
+        const commands = Object.entries(cmdHandlers);
 
-      // 从配置读取命令权限覆盖
-      let permissionsOverride: Record<
-        string,
-        { scope?: string | string[]; permission?: string }
-      > = {};
-      try {
-        if (config?.cmd?.permissions) {
-          permissionsOverride = config.cmd.permissions;
-        }
-      } catch (e) {
-        logger.debug("读取命令权限配置失败", e);
-      }
-
-      // 格式化命令信息的辅助函数
-      const formatCommand = (
-        cmdName: string,
-        description: string,
-        scope: string | string[] | undefined = "all",
-        permission: string = "all"
-      ) => {
-        // 检查是否有配置覆盖
-        const override = permissionsOverride[cmdName];
-        if (override) {
-          if (override.scope) scope = override.scope;
-          if (override.permission) permission = override.permission;
+        // 跳过没有命令的插件
+        if (commands.length === 0) {
+          continue;
         }
 
-        // 处理数组形式的 scope
-        const scopeArray = Array.isArray(scope) ? scope : [scope || "all"];
+        const commandInfo = commands.map(([cmd, def]) => ({
+          cmd,
+          description: def.description || "无描述",
+        }));
 
-        // 如果都是默认值（all），不显示图标以保持简洁
-        const isAllScope = scopeArray.length === 1 && scopeArray[0] === "all";
-        if (isAllScope && permission === "all") {
-          return `  /${cmdName} - ${description}`;
-        }
-
-        // 显示权限标识
-        let badges = "";
-        if (!isAllScope) {
-          // 为每个场景添加图标
-          const uniqueScopes = [...new Set(scopeArray)];
-          for (const s of uniqueScopes) {
-            if (s !== "all") {
-              badges += scopeIcons[s] || "🌍";
-            }
-          }
-        }
-        if (permission !== "all") {
-          badges += permissionIcons[permission] || "✅";
-        }
-
-        return `  /${cmdName} ${badges} - ${description}`;
-      };
-
-      // 自带命令
-      if (typeof getInternalCommands === "function") {
-        const internals = getInternalCommands();
-        if (internals.length > 0) {
-          lines.push("📦 自带命令");
-          for (const cmd of internals) {
-            lines.push(
-              formatCommand(
-                cmd.name,
-                cmd.description || "",
-                cmd.scope,
-                cmd.permission
-              )
-            );
-          }
-          lines.push("");
+        // 如果插件只有一个命令，加入单命令列表
+        if (commands.length === 1) {
+          const [cmd, def] = commands[0];
+          singleCommandList.push({
+            name: plugin.name,
+            cmd,
+            doc: def.description || "无描述",
+          });
+        } else {
+          multiCommandList.push({
+            name: plugin.name,
+            version: plugin.version,
+            description: plugin.description,
+            cmdHandlers: commandInfo,
+          });
         }
       }
 
-      // 插件命令
-      if (plugins.length > 0) {
-        lines.push("🧩 插件命令");
-        for (const p of plugins) {
-          const cmds = Object.keys(p.instance.cmdHandlers || {});
-          if (cmds.length === 0) continue;
-          lines.push(`\n  📌 ${p.name}`);
-          for (const c of cmds) {
-            const def = p.instance.cmdHandlers[c] as any;
-            const desc = def?.description || "";
-            const scope = def?.scope || "all";
-            const permission = def?.permission || "all";
-            lines.push(formatCommand(c, desc, scope, permission));
-          }
+      const data: Array<{
+        name: string;
+        desc: string;
+        commands: Array<{
+          name: string;
+          desc: string;
+        }>;
+      }> = [];
+
+      // 1. 添加系统命令目录
+      if (internalCommands.length > 0) {
+        data.push({
+          name: "内置命令",
+          desc: "",
+          commands: internalCommands.map((cmd) => ({
+            name: `/${cmd.name}`,
+            desc: cmd.description || "无描述",
+          })),
+        });
+      }
+
+      // 2. 添加单命令插件列表
+      if (singleCommandList.length > 0) {
+        data.push({
+          name: "插件命令",
+          desc: "单命令插件列表",
+          commands: singleCommandList.map((item) => ({
+            name: `/${item.cmd}`,
+            desc: `${item.doc}`,
+          })),
+        });
+      }
+
+      // 3. 添加多命令插件列表
+      for (const plugin of multiCommandList) {
+        data.push({
+          name: plugin.name,
+          desc: plugin.description,
+          commands: plugin.cmdHandlers.map((cmd) => ({
+            name: `/${cmd.cmd}`,
+            desc: cmd.description,
+          })),
+        });
+      }
+
+      const dataHash = createHash("sha256")
+        .update(JSON.stringify(data))
+        .digest("hex");
+
+      const cachedHelp = await getCacheByHash(dataHash);
+
+      if (cachedHelp?.file_id) {
+        logger.debug("使用缓存的帮助图片 file_id");
+        try {
+          await sendMessage(client, update.message.chat_id, {
+            media: {
+              photo: {
+                id: cachedHelp.file_id,
+              },
+            },
+          });
+          return;
+        } catch (e) {
+          logger.warn("使用缓存的 file_id 发送失败，将重新生成图片", e);
+          // 如果发送失败，删除缓存并继续生成新图片
+          await deleteCacheByHash(dataHash);
         }
-        lines.push("");
       }
 
-      // 添加图标说明
-      lines.push("\n📖 图标说明:");
-      lines.push("  💬 私聊 | 👥 群组 | 📢 频道");
-      lines.push("  🛡️ 管理员 | 👑 超级管理员");
+      logger.debug("生成新的帮助图片");
+      const pngPath = await generatePng(
+        {
+          width: 800,
+          height: "auto",
+          debug: false,
+          quality: 2,
+          imgname: `help.png`,
+        },
+        template,
+        {
+          data,
+          version: process.env.APP_VERSION || "0.0.0",
+        }
+      );
 
-      const text =
-        lines.length > 0 ? lines.join("\n") : "当前没有注册任何命令。";
+      const result = await sendMessage(client, update.message.chat_id, {
+        media: {
+          photo: {
+            path: pngPath,
+          },
+        },
+      });
 
-      try {
-        await sendMessage(client, update.message.chat_id, { text: text });
-      } catch (e) {
-        logger.error("发送帮助消息失败", e);
+      // 保存 file_id 到缓存
+      if (result && result.content._ === "messagePhoto") {
+        const file_id = result.content.photo.sizes.slice(-1)[0].photo.remote.id;
+        try {
+          await saveCache(dataHash, String(file_id));
+          logger.debug("已缓存帮助图片 file_id");
+        } catch (e) {
+          logger.warn("保存 file_id 缓存失败", e);
+        }
       }
-
-      logger.debug("Help 列表:\n" + text);
     } catch (e) {
       logger.error("Help 处理错误", e);
     }

@@ -16,7 +16,7 @@ export default class setAdmin extends Plugin {
     // 命令处理器：当收到 /setadmin 时触发
     this.cmdHandlers = {
       setadmin: {
-        description: "设置管理员",
+        description: "设置管理员(仅限主人)",
         scope: "private", // 只能在私聊中使用
         handler: async (update, args) => {
           try {
