@@ -16,7 +16,7 @@ export default class PluginCommand extends Plugin {
     // 命令处理器：当收到 /plugin 时触发
     this.cmdHandlers = {
       plugin: {
-        description: "插件管理命令(该命令只能在私聊中使用)",
+        description: "插件管理命令(仅限私聊&管理)",
         handler: async (updateNewMessage, args) => {
           const chatId = updateNewMessage.message.chat_id;
 

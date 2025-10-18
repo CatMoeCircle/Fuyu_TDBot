@@ -18,7 +18,7 @@ export default class getlog extends Plugin {
     // 命令处理器：当收到 /log 时触发
     this.cmdHandlers = {
       log: {
-        description: "获取日志文件(该命令只能在私聊中使用)",
+        description: "获取日志文件(仅限私聊&管理)",
         permission: "admin",
         scope: "private",
         handler: async (updateNewMessage, args) => {

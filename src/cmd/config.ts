@@ -16,7 +16,7 @@ export default class ConfigCommand extends Plugin {
     // 命令处理器：当收到 /config 时触发
     this.cmdHandlers = {
       config: {
-        description: "配置管理命令(该命令只能在私聊中使用)",
+        description: "配置管理命令(仅限私聊&管理)",
         scope: "private",
         permission: "admin",
         handler: async (updateNewMessage, args) => {
