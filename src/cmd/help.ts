@@ -4,7 +4,7 @@ import logger from "@log/index.ts";
 import type { PluginInfo } from "@plugin/PluginManager.ts";
 import { generatePng } from "@function/gen_png.ts";
 import template from "./vue/help.vue?raw";
-import { sendMessage } from "@TDLib/function/message.ts";
+import { sendMessage, deleteMessage } from "@TDLib/function/message.ts";
 import { createHash } from "crypto";
 import { getCacheByHash } from "@db/query.ts";
 import { saveCache } from "@db/update.ts";
@@ -163,14 +163,25 @@ export function createHelpHandler(
       if (cachedHelp?.file_id) {
         logger.debug("使用缓存的帮助图片 file_id");
         try {
-          await sendMessage(client, update.message.chat_id, {
-            reply_to_message_id: update.message.id,
-            media: {
-              photo: {
-                id: cachedHelp.file_id,
+          const sentMessage = await sendMessage(
+            client,
+            update.message.chat_id,
+            {
+              reply_to_message_id: update.message.id,
+              media: {
+                photo: {
+                  id: cachedHelp.file_id,
+                },
               },
-            },
-          });
+            }
+          );
+
+          // 10秒后自动删除消息
+          if (sentMessage) {
+            setTimeout(() => {
+              deleteMessage(client, update.message.chat_id, sentMessage.id);
+            }, 10000);
+          }
           return;
         } catch (e) {
           logger.warn("使用缓存的 file_id 发送失败，将重新生成图片", e);
@@ -203,6 +214,13 @@ export function createHelpHandler(
           },
         },
       });
+
+      // 10秒后自动删除消息
+      if (result) {
+        setTimeout(() => {
+          deleteMessage(client, update.message.chat_id, result.id);
+        }, 10000);
+      }
 
       // 保存 file_id 到缓存
       if (result && result.content._ === "messagePhoto") {
