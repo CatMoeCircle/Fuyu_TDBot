@@ -176,11 +176,11 @@ export function createHelpHandler(
             }
           );
 
-          // 10秒后自动删除消息
+          // 180秒后自动删除消息
           if (sentMessage) {
             setTimeout(() => {
               deleteMessage(client, update.message.chat_id, sentMessage.id);
-            }, 10000);
+            }, 180000);
           }
           return;
         } catch (e) {
@@ -215,11 +215,11 @@ export function createHelpHandler(
         },
       });
 
-      // 10秒后自动删除消息
+      // 180秒后自动删除消息
       if (result) {
         setTimeout(() => {
           deleteMessage(client, update.message.chat_id, result.id);
-        }, 10000);
+        }, 180000);
       }
 
       // 保存 file_id 到缓存
