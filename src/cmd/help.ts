@@ -179,7 +179,10 @@ export function createHelpHandler(
           // 180秒后自动删除消息
           if (sentMessage) {
             setTimeout(() => {
-              deleteMessage(client, update.message.chat_id, sentMessage.id);
+              deleteMessage(client, update.message.chat_id, [
+                sentMessage.id,
+                update.message.id,
+              ]);
             }, 180000);
           }
           return;
@@ -218,7 +221,10 @@ export function createHelpHandler(
       // 180秒后自动删除消息
       if (result) {
         setTimeout(() => {
-          deleteMessage(client, update.message.chat_id, result.id);
+          deleteMessage(client, update.message.chat_id, [
+            result.id,
+            update.message.id,
+          ]);
         }, 180000);
       }
 
