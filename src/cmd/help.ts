@@ -164,6 +164,7 @@ export function createHelpHandler(
         logger.debug("使用缓存的帮助图片 file_id");
         try {
           await sendMessage(client, update.message.chat_id, {
+            reply_to_message_id: update.message.id,
             media: {
               photo: {
                 id: cachedHelp.file_id,
@@ -195,6 +196,7 @@ export function createHelpHandler(
       );
 
       const result = await sendMessage(client, update.message.chat_id, {
+        reply_to_message_id: update.message.id,
         media: {
           photo: {
             path: pngPath,
