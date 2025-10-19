@@ -6,9 +6,9 @@ import { generatePng } from "@function/gen_png.ts";
 import template from "./vue/help.vue?raw";
 import { sendMessage, deleteMessage } from "@TDLib/function/message.ts";
 import { createHash } from "crypto";
-import { getCacheByHash } from "@db/query.ts";
+import { getCacheByType } from "@db/query.ts";
 import { saveCache } from "@db/update.ts";
-import { deleteCacheByHash } from "@db/delete.ts";
+import { deleteCacheByType } from "@db/delete.ts";
 
 export const description = "帮助命令 列出所有可用命令";
 export const scope = "all"; // 可选：可以设置为 "private" | "group" | "channel" | "all"
@@ -158,9 +158,10 @@ export function createHelpHandler(
         .update(JSON.stringify(data))
         .digest("hex");
 
-      const cachedHelp = await getCacheByHash(dataHash);
+      const cachedHelp = await getCacheByType("help");
 
-      if (cachedHelp?.file_id) {
+      // 检查缓存是否存在且数据未变化
+      if (cachedHelp?.file_id && cachedHelp.hash === dataHash) {
         logger.debug("使用缓存的帮助图片 file_id");
         try {
           const sentMessage = await sendMessage(
@@ -189,17 +190,19 @@ export function createHelpHandler(
         } catch (e) {
           logger.warn("使用缓存的 file_id 发送失败，将重新生成图片", e);
           // 如果发送失败，删除缓存并继续生成新图片
-          await deleteCacheByHash(dataHash);
+          await deleteCacheByType("help");
         }
+      } else if (cachedHelp && cachedHelp.hash !== dataHash) {
+        logger.debug("数据已变化，将重新生成帮助图片");
       }
 
       logger.debug("生成新的帮助图片");
-      const pngPath = await generatePng(
+      const pngMetadata = await generatePng(
         {
           width: 800,
           height: "auto",
           debug: false,
-          quality: 2,
+          quality: 1.6,
           imgname: `help.png`,
         },
         template,
@@ -213,8 +216,10 @@ export function createHelpHandler(
         reply_to_message_id: update.message.id,
         media: {
           photo: {
-            path: pngPath,
+            path: pngMetadata.path,
           },
+          width: pngMetadata.width,
+          height: pngMetadata.height,
         },
       });
 
@@ -232,7 +237,7 @@ export function createHelpHandler(
       if (result && result.content._ === "messagePhoto") {
         const file_id = result.content.photo.sizes.slice(-1)[0].photo.remote.id;
         try {
-          await saveCache(dataHash, String(file_id));
+          await saveCache("help", dataHash, String(file_id));
           logger.debug("已缓存帮助图片 file_id");
         } catch (e) {
           logger.warn("保存 file_id 缓存失败", e);

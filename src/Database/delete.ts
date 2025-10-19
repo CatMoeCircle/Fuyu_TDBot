@@ -1,18 +1,41 @@
 import { getDatabase } from "./index.ts";
 
 /**
- * 根据哈希值删除缓存
+ * 根据类型删除缓存
+ * @param type - 缓存类型(主要标识)
+ * @param collectionName - 集合名称，默认为 "cache"
+ * @returns 删除结果
+ */
+export async function deleteCacheByType(
+  type: string,
+  collectionName = "cache"
+) {
+  const db = await getDatabase();
+  const collection = db.collection(collectionName);
+  const result = await collection.deleteOne({ type });
+  return result;
+}
+
+/**
+ * 根据哈希值删除缓存(已废弃)
+ * @deprecated 使用 deleteCacheByType 代替,type 现在是主要查询条件
  * @param hash - 数据哈希值
+ * @param type - 缓存类型(可选),用于进一步筛选
  * @param collectionName - 集合名称，默认为 "cache"
  * @returns 删除结果
  */
 export async function deleteCacheByHash(
   hash: string,
+  type?: string,
   collectionName = "cache"
 ) {
   const db = await getDatabase();
   const collection = db.collection(collectionName);
-  const result = await collection.deleteOne({ hash });
+  const filter: Record<string, any> = { hash };
+  if (type) {
+    filter.type = type;
+  }
+  const result = await collection.deleteOne(filter);
   return result;
 }
 

@@ -2,12 +2,14 @@ import { getDatabase } from "./index.ts";
 
 /**
  * 保存或更新缓存
- * @param hash - 数据哈希值
+ * @param type - 缓存类型(主要标识,如 "help", "image" 等)
+ * @param hash - 数据哈希值(用于比对数据是否变化)
  * @param file_id - Telegram 文件 ID
  * @param collectionName - 集合名称，默认为 "cache"
  * @returns 更新结果
  */
 export async function saveCache(
+  type: string,
   hash: string,
   file_id: string,
   collectionName = "cache"
@@ -15,8 +17,8 @@ export async function saveCache(
   const db = await getDatabase();
   const collection = db.collection(collectionName);
   const result = await collection.updateOne(
-    { hash },
-    { $set: { hash, file_id, updated_at: new Date() } },
+    { type },
+    { $set: { type, hash, file_id, updated_at: new Date() } },
     { upsert: true }
   );
   return result;

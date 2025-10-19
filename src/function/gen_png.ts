@@ -1,5 +1,6 @@
 import { defineSatoriConfig, satoriVue } from "x-satori/vue";
 import { Resvg } from "@resvg/resvg-js";
+import sharp from "sharp";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -33,10 +34,14 @@ export async function generatePng(
     debug?: boolean;
     quality?: number;
     imgname?: string;
+    /** 输出格式：'png' (默认) 或 'jpg' */
+    format?: "png" | "jpg" | "jpeg";
+    /** 当 format 为 jpg 时的压缩质量（1-100） */
+    jpegQuality?: number;
   },
   vuetemplateStr: string,
   props?: Record<string, any>
-): Promise<string> {
+): Promise<{ path: string; width: number; height: number }> {
   const opt = defineSatoriConfig({
     width: (options.width as number) || 800,
     height: (options.height as number) || 600,
@@ -59,16 +64,61 @@ export async function generatePng(
     fitTo: { mode: "zoom", value: options.quality || 1 },
   });
 
-  const pngData = resvg.render().asPng();
   const outputDir = path.join(process.cwd(), "cache");
 
-  // 如果没有指定文件名,使用随机hash
-  const fileName =
-    options.imgname || `${crypto.randomBytes(16).toString("hex")}.png`;
-  const outputPath = path.join(outputDir, fileName);
+  const format = (options.format || "jpg").toLowerCase();
 
-  // 确保目录存在
+  let fileName =
+    options.imgname || `${crypto.randomBytes(16).toString("hex")}.jpg`;
+  const ext = path.extname(fileName);
+  if (!ext) {
+    fileName = `${fileName}.${format === "jpg" ? "jpg" : format}`;
+  } else {
+    const wantedExt = format === "jpg" ? ".jpg" : `.${format}`;
+    if (ext.toLowerCase() !== wantedExt) {
+      fileName = path.basename(fileName, ext) + wantedExt;
+    }
+  }
+
+  const outputPath = path.join(outputDir, fileName);
   await fs.promises.mkdir(outputDir, { recursive: true });
-  await fs.promises.writeFile(outputPath, pngData);
-  return outputPath;
+
+  if (format === "png") {
+    const pngData = resvg.render().asPng();
+    await fs.promises.writeFile(outputPath, pngData);
+
+    // 获取 PNG 图片的宽度和高度
+    const metadata = await sharp(pngData).metadata();
+    return {
+      path: outputPath,
+      width: metadata.width || 0,
+      height: metadata.height || 0,
+    };
+  }
+
+  const jpegQuality =
+    typeof options.jpegQuality === "number" ? options.jpegQuality : 90;
+
+  const pngData = resvg.render().asPng();
+  const pipeline = sharp(pngData);
+
+  // 如果指定了 quality，则进行缩放
+  const quality = options.quality || 1;
+  if (quality !== 1) {
+    const metadata = await pipeline.metadata();
+    const scaledWidth = Math.round((metadata.width || 0) * quality);
+    const scaledHeight = Math.round((metadata.height || 0) * quality);
+    pipeline.resize(scaledWidth, scaledHeight);
+  }
+
+  const jpegBuffer = await pipeline.jpeg({ quality: jpegQuality }).toBuffer();
+  await fs.promises.writeFile(outputPath, jpegBuffer);
+
+  // 获取 JPEG 图片的宽度和高度
+  const metadata = await sharp(jpegBuffer).metadata();
+  return {
+    path: outputPath,
+    width: metadata.width || 0,
+    height: metadata.height || 0,
+  };
 }

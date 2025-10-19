@@ -9,7 +9,7 @@
             </div>
         </div>
         <div class="flex flex-col p-4" style="gap: 1rem;">
-            <div class="flex flex-col p-6 mt-2 mb-3" style="gap: 3px;">
+            <div class="flex flex-col p-6 mt-2 mb-5" style="gap: 3px;">
                 <h1 class="text-4xl m-0 p-0">帮助</h1>
                 <p class="text-sm text-neutral-400 m-0 p-0 pl-1">Fuyu_TDBot - Help</p>
             </div>
@@ -32,12 +32,13 @@
                             style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ command.name }}
                         </h3>
                         <p class="m-0 p-0 text-xs text-black/60" :title="command.desc"
-                            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ command.desc }}
+                            style="display: -webkit-box; -webkit-box-orient: vertical; line-clamp: 2; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; white-space: normal;">
+                            {{ command.desc }}
                         </p>
                     </div>
                 </div>
             </div>
-            <div class="flex items-center justify-end mr-2">
+            <div class="flex items-center justify-end">
                 <h1 class="flex flex-col m-0 p-0 text-neutral-400 text-xs">Fuyu_TDBot - v{{ version }}</h1>
             </div>
         </div>
