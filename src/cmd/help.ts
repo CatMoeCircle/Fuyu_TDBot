@@ -9,6 +9,7 @@ import { createHash } from "crypto";
 import { getCacheByType } from "@db/query.ts";
 import { saveCache } from "@db/update.ts";
 import { deleteCacheByType } from "@db/delete.ts";
+import { isGroup } from "@TDLib/function/index.ts";
 
 export const description = "帮助命令 列出所有可用命令";
 export const scope = "all"; // 可选：可以设置为 "private" | "group" | "channel" | "all"
@@ -179,11 +180,14 @@ export function createHelpHandler(
 
           // 180秒后自动删除消息
           if (sentMessage) {
-            setTimeout(() => {
-              deleteMessage(client, update.message.chat_id, [
-                sentMessage.id,
-                update.message.id,
-              ]);
+            setTimeout(async () => {
+              if (await isGroup(client, update.message.chat_id)) {
+                // 如果是群聊，删除原消息
+                deleteMessage(client, update.message.chat_id, [
+                  sentMessage.id,
+                  update.message.id,
+                ]);
+              }
             }, 180000);
           }
           return;
@@ -225,11 +229,14 @@ export function createHelpHandler(
 
       // 180秒后自动删除消息
       if (result) {
-        setTimeout(() => {
-          deleteMessage(client, update.message.chat_id, [
-            result.id,
-            update.message.id,
-          ]);
+        setTimeout(async () => {
+          if (await isGroup(client, update.message.chat_id)) {
+            // 如果是群聊，删除原消息
+            deleteMessage(client, update.message.chat_id, [
+              result.id,
+              update.message.id,
+            ]);
+          }
         }, 180000);
       }
 
