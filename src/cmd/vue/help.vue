@@ -18,22 +18,23 @@
                 style="border: 1px solid rgba(0, 0, 0, 0.1); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
                 <div class="flex items-center" style="gap: 0.5rem;">
                     <h2 class="text-xl font-semibold m-0 p-0" :title="plugin.name"
-                        style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;">{{
-                            plugin.name }}</h2>
+                        style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;"
+                        v-html="plugin.name"></h2>
                     <p class="m-0 p-0 text-xs" :title="plugin.desc"
-                        style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;">{{
-                            plugin.desc }}</p>
+                        style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;"
+                        v-html="plugin.desc"></p>
                 </div>
                 <div class="flex flex-wrap mt-2 " style="gap: 0.5rem;">
                     <div v-for="command in plugin.commands" :key="command.name"
                         class="flex flex-col p-1.5 bg-opacity-50 rounded-lg"
                         style="border: 1px solid rgba(0, 0, 0, 0.1);box-shadow: 0 0 6px rgba(0, 0, 0, 0.3); width: 24%; flex-grow: 0; flex-shrink: 0; box-sizing: border-box;">
                         <h3 class="text-base font-medium m-0 p-0" :title="command.name"
-                            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ command.name }}
+                            style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                            v-html="command.name">
                         </h3>
                         <p class="m-0 p-0 text-xs text-black/60" :title="command.desc"
-                            style="display: -webkit-box; -webkit-box-orient: vertical; line-clamp: 2; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; white-space: normal;">
-                            {{ command.desc }}
+                            style="display: -webkit-box; -webkit-box-orient: vertical; line-clamp: 2; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; white-space: normal;"
+                            v-html="command.desc">
                         </p>
                     </div>
                 </div>
