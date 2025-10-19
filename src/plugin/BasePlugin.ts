@@ -42,6 +42,12 @@ export interface CommandDef {
   /** 命令的简短说明，会用于 help 或列表展示 */
   description: string;
   /**
+   * 可选：命令是否在帮助/命令列表中显示。
+   * - true（默认）：在帮助列表中显示
+   * - false：在帮助列表中隐藏（仍可通过直接调用使用）
+   */
+  showInHelp?: boolean;
+  /**
    * 命令处理器。
    * @param message 收到的消息（通常是 `updateNewMessage`）
    * @param args 可选的命令参数数组（如果命令解析为参数）

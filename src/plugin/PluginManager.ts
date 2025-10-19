@@ -317,7 +317,21 @@ export class PluginManager {
             }
 
             const cmds = inst.cmdHandlers || {};
+            // Ensure commands have a default showInHelp = true when not provided
             for (const [name, def] of Object.entries(cmds)) {
+              try {
+                const _d = def as any;
+                if (
+                  _d &&
+                  typeof _d === "object" &&
+                  !Object.prototype.hasOwnProperty.call(_d, "showInHelp")
+                ) {
+                  _d.showInHelp = true;
+                }
+              } catch {
+                // ignore
+              }
+
               const d = def as any;
               if (typeof d.handler === "function") {
                 const safeHandler = async (update: any, args?: any) => {
@@ -536,6 +550,27 @@ export class PluginManager {
     if (!(pluginInstance instanceof BasePlugin)) {
       logger.warn(`[插件管理] 插件 ${modulePath} 未继承自 BasePlugin`);
       return;
+    }
+
+    // 为插件的命令定义设置默认 showInHelp = true（如果未显式设置）
+    try {
+      const cmdsAny = pluginInstance.cmdHandlers || {};
+      for (const [, def] of Object.entries(cmdsAny)) {
+        try {
+          const d = def as any;
+          if (
+            d &&
+            typeof d === "object" &&
+            !Object.prototype.hasOwnProperty.call(d, "showInHelp")
+          ) {
+            d.showInHelp = true;
+          }
+        } catch {
+          // ignore per-command errors
+        }
+      }
+    } catch {
+      // ignore
     }
 
     // 检查必需属性

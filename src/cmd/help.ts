@@ -87,14 +87,25 @@ export function createHelpHandler(
           continue;
         }
 
-        const commandInfo = commands.map(([cmd, def]) => ({
+        // 过滤出在帮助中可见的命令（showInHelp 未设置或为 true）
+        const visible = commands.filter(([, def]) => {
+          // def 可能没有 showInHelp 字段
+          // 当 showInHelp === false 时视为隐藏，其余情况视为可见
+          // @ts-ignore -- 兼容第三方或旧的命令定义
+          return (def.showInHelp as unknown) !== false;
+        });
+
+        // 如果所有命令都被隐藏，则回退为显示全部命令
+        const effectiveCommands = visible.length === 0 ? commands : visible;
+
+        const commandInfo = effectiveCommands.map(([cmd, def]) => ({
           cmd,
           description: def.description || "无描述",
         }));
 
-        // 如果插件只有一个命令，加入单命令列表
-        if (commands.length === 1) {
-          const [cmd, def] = commands[0];
+        // 如果只有一个可见命令（或回退后只有一个），放入单命令列表
+        if (effectiveCommands.length === 1) {
+          const [cmd, def] = effectiveCommands[0];
           singleCommandList.push({
             name: plugin.name,
             cmd,
