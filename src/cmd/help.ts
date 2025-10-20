@@ -2,14 +2,11 @@ import type { Client } from "tdl";
 import type { updateNewMessage } from "tdlib-types";
 import logger from "@log/index.ts";
 import type { PluginInfo } from "@plugin/PluginManager.ts";
-import { generatePng } from "@function/gen_png.ts";
+import { generateImage } from "@function/genImg.ts";
 import template from "./vue/help.vue?raw";
 import { sendMessage, deleteMessage } from "@TDLib/function/message.ts";
-import { createHash } from "crypto";
-import { getCacheByType } from "@db/query.ts";
-import { saveCache } from "@db/update.ts";
-import { deleteCacheByType } from "@db/delete.ts";
-import { isGroup } from "@TDLib/function/index.ts";
+import { updateImgCache } from "@db/update.ts";
+import { deleteImgCache } from "@db/delete.ts";
 
 export const description = "帮助命令 列出所有可用命令";
 export const scope = "all"; // 可选：可以设置为 "private" | "group" | "channel" | "all"
@@ -28,7 +25,8 @@ export function createHelpHandler(
   return async (update: updateNewMessage, _args?: string[]) => {
     try {
       // 尝试获取自定义帮助文本
-      const { getConfig } = await import("@db/config.ts");
+      const dbModule = await import("@db/config.ts");
+      const getConfig = dbModule.getConfig as typeof dbModule.getConfig;
       const config = await getConfig("config");
 
       if (config?.cmd?.help) {
@@ -62,6 +60,87 @@ export function createHelpHandler(
 
       const internalCommands = getInternalCommands ? getInternalCommands() : [];
 
+      // 计算当前聊天类型和用户权限，用于过滤可见命令
+      const chatId = update.message.chat_id;
+      const { isPrivate, isGroup, isChannel } = await import(
+        "@TDLib/function/index.ts"
+      );
+      let chatType: "private" | "group" | "channel" = "private";
+      if (await isPrivate(client, chatId)) chatType = "private";
+      else if (await isChannel(client, chatId)) chatType = "channel";
+      else if (await isGroup(client, chatId)) chatType = "group";
+
+      // 读取管理员配置以判定用户权限
+      const adminConfig = await getConfig("admin");
+      let userPermission: "owner" | "admin" | "user" = "user";
+      let userId: number | null = null;
+      if (update.message.sender_id?._ === "messageSenderUser") {
+        userId = update.message.sender_id.user_id;
+        if (adminConfig?.super_admin === userId) userPermission = "owner";
+        else if (adminConfig?.admin && Array.isArray(adminConfig.admin)) {
+          if (adminConfig.admin.includes(userId)) userPermission = "admin";
+        }
+      }
+
+      // 读取命令覆盖配置（用于 scope/permission 的覆盖）
+      const configData = await (async () => {
+        try {
+          return await getConfig("config");
+        } catch {
+          return null;
+        }
+      })();
+
+      const validateAccess = (
+        commandName: string,
+        scope: string | string[] = "all",
+        permission: string = "all",
+        forDisplay: boolean = false
+      ): { allowed: boolean } => {
+        try {
+          if (configData?.cmd?.permissions?.[commandName]) {
+            const override = configData.cmd.permissions[commandName];
+            if (override.scope) scope = override.scope;
+            if (override.permission) permission = override.permission;
+          }
+        } catch {
+          // ignore
+        }
+
+        const scopeArray = Array.isArray(scope) ? scope : [scope];
+        if (!scopeArray.includes("all")) {
+          if (!scopeArray.includes(chatType)) return { allowed: false };
+        }
+
+        // 超级管理员在私聊环境下可以查看所有权限的命令（用于显示）
+        if (
+          forDisplay &&
+          userPermission === "owner" &&
+          chatType === "private"
+        ) {
+          return { allowed: true };
+        }
+
+        if (permission !== "all") {
+          if (permission === "owner" && userPermission !== "owner") {
+            return { allowed: false };
+          }
+          if (permission === "admin" && userPermission === "user") {
+            return { allowed: false };
+          }
+        }
+
+        return { allowed: true };
+      };
+
+      // 过滤内置命令，使其也遵循场景与权限的显示规则
+      // 对于显示（forDisplay=true），超级管理员在私聊可以看到所有权限的命令
+      const visibleInternalCommands = internalCommands.filter((cmd) => {
+        const scope = cmd.scope || "all";
+        const permission = cmd.permission || "all";
+        return validateAccess(cmd.name, scope, permission, true).allowed;
+      });
+
       const singleCommandList: Array<{
         name: string;
         cmd: string;
@@ -83,29 +162,35 @@ export function createHelpHandler(
         const commands = Object.entries(cmdHandlers);
 
         // 跳过没有命令的插件
-        if (commands.length === 0) {
-          continue;
-        }
+        if (commands.length === 0) continue;
 
-        // 过滤出在帮助中可见的命令（showInHelp 未设置或为 true）
-        const visible = commands.filter(([, def]) => {
-          // def 可能没有 showInHelp 字段
-          // 当 showInHelp === false 时视为隐藏，其余情况视为可见
-          // @ts-ignore -- 兼容第三方或旧的命令定义
-          return (def.showInHelp as unknown) !== false;
+        // 先按 showInHelp 标记过滤（若所有命令都被标记为隐藏，则回退为显示全部）
+        const visibleByFlag = commands.filter(([, def]) => {
+          // @ts-ignore
+          return (def?.showInHelp as unknown) !== false;
         });
 
-        // 如果所有命令都被隐藏，则回退为显示全部命令
-        const effectiveCommands = visible.length === 0 ? commands : visible;
+        const effectiveCommands =
+          visibleByFlag.length === 0 ? commands : visibleByFlag;
 
-        const commandInfo = effectiveCommands.map(([cmd, def]) => ({
+        // 再按当前 chatType + userPermission 过滤（支持 config 覆盖）
+        // 对于显示，超级管理员在私聊可以看到所有权限的命令
+        const finalVisible = effectiveCommands.filter(([cmd, def]) => {
+          const scope = (def && def.scope) || "all";
+          const permission = (def && def.permission) || "all";
+          return validateAccess(cmd, scope, permission, true).allowed;
+        });
+
+        // 如果用户在当前场景/权限下看不到任何命令，则跳过该插件
+        if (finalVisible.length === 0) continue;
+
+        const commandInfo = finalVisible.map(([cmd, def]) => ({
           cmd,
           description: def.description || "无描述",
         }));
 
-        // 如果只有一个可见命令（或回退后只有一个），放入单命令列表
-        if (effectiveCommands.length === 1) {
-          const [cmd, def] = effectiveCommands[0];
+        if (finalVisible.length === 1) {
+          const [cmd, def] = finalVisible[0];
           singleCommandList.push({
             name: plugin.name,
             cmd,
@@ -130,12 +215,12 @@ export function createHelpHandler(
         }>;
       }> = [];
 
-      // 1. 添加系统命令目录
-      if (internalCommands.length > 0) {
+      // 1. 添加系统命令目录（只包含当前用户/场景可见的内置命令）
+      if (visibleInternalCommands.length > 0) {
         data.push({
           name: "内置命令",
           desc: "",
-          commands: internalCommands.map((cmd) => ({
+          commands: visibleInternalCommands.map((cmd) => ({
             name: `/${cmd.name}`,
             desc: cmd.description || "无描述",
           })),
@@ -166,14 +251,23 @@ export function createHelpHandler(
         });
       }
 
-      const dataHash = createHash("sha256")
-        .update(JSON.stringify(data))
-        .digest("hex");
-
-      const cachedHelp = await getCacheByType("help");
+      const pngMetadata = await generateImage(
+        {
+          width: 800,
+          height: "auto",
+          debug: false,
+          quality: 1.6,
+          imgname: `help.png`,
+        },
+        template,
+        {
+          data,
+          version: process.env.APP_VERSION || "0.0.0",
+        }
+      );
 
       // 检查缓存是否存在且数据未变化
-      if (cachedHelp?.file_id && cachedHelp.hash === dataHash) {
+      if (pngMetadata?.file_id && pngMetadata.hash) {
         logger.debug("使用缓存的帮助图片 file_id");
         try {
           const sentMessage = await sendMessage(
@@ -183,7 +277,7 @@ export function createHelpHandler(
               reply_to_message_id: update.message.id,
               media: {
                 photo: {
-                  id: cachedHelp.file_id,
+                  id: pngMetadata.file_id,
                 },
               },
             }
@@ -205,27 +299,9 @@ export function createHelpHandler(
         } catch (e) {
           logger.warn("使用缓存的 file_id 发送失败，将重新生成图片", e);
           // 如果发送失败，删除缓存并继续生成新图片
-          await deleteCacheByType("help");
+          await deleteImgCache(pngMetadata.hash);
         }
-      } else if (cachedHelp && cachedHelp.hash !== dataHash) {
-        logger.debug("数据已变化，将重新生成帮助图片");
       }
-
-      logger.debug("生成新的帮助图片");
-      const pngMetadata = await generatePng(
-        {
-          width: 800,
-          height: "auto",
-          debug: false,
-          quality: 1.6,
-          imgname: `help.png`,
-        },
-        template,
-        {
-          data,
-          version: process.env.APP_VERSION || "0.0.0",
-        }
-      );
 
       const result = await sendMessage(client, update.message.chat_id, {
         reply_to_message_id: update.message.id,
@@ -252,13 +328,13 @@ export function createHelpHandler(
       }
 
       // 保存 file_id 到缓存
-      if (result && result.content._ === "messagePhoto") {
+      if (result && result.content._ === "messagePhoto" && pngMetadata.hash) {
         const file_id = result.content.photo.sizes.slice(-1)[0].photo.remote.id;
         try {
-          await saveCache("help", dataHash, String(file_id));
+          await updateImgCache(pngMetadata.hash, file_id);
           logger.debug("已缓存帮助图片 file_id");
-        } catch (e) {
-          logger.warn("保存 file_id 缓存失败", e);
+        } catch (err) {
+          logger.warn("保存 file_id 缓存失败", err);
         }
       }
     } catch (e) {

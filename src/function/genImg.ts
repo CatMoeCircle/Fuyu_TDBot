@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import NotoSansSC from "../fonts/NotoSansSC-Regular.ttf?file";
+import { getImgCache } from "@db/query.ts";
 
 // 直接使用路径引用字体文件
 
@@ -26,7 +27,23 @@ interface FontOptions {
   lang?: string;
 }
 
-export async function generatePng(
+/**
+ * 生成字符串哈希
+ * @param str 要计算哈希的字符串
+ * @param algorithm 哈希算法 (默认 sha256)
+ * @returns 哈希字符串（hex 格式）
+ */
+export function hashString(str: string, algorithm: string = "sha256"): string {
+  return crypto.createHash(algorithm).update(str, "utf8").digest("hex");
+}
+
+/** * 生成图片
+ * @param options 图片生成选项
+ * @param vuetemplateStr Vue 模板字符串
+ * @param props Vue 模板的属性
+ * @return 返回生成的图片信息，包括路径、宽度、高度、哈希值和文件 ID
+ */
+export async function generateImage(
   options: {
     width: number | "auto";
     height: number | "auto";
@@ -41,7 +58,13 @@ export async function generatePng(
   },
   vuetemplateStr: string,
   props?: Record<string, any>
-): Promise<{ path: string; width: number; height: number }> {
+): Promise<{
+  path?: string;
+  width?: number;
+  height?: number;
+  hash?: string;
+  file_id?: string;
+}> {
   const opt = defineSatoriConfig({
     width: (options.width as number) || 800,
     height: (options.height as number) || 600,
@@ -58,6 +81,12 @@ export async function generatePng(
     props,
   });
 
+  // 计算模板和选项的哈希值以进行缓存查询
+  const hashed = hashString(vuetemplateStr + JSON.stringify(opt));
+  const file_id = await getImgCache(hashed);
+  if (file_id) {
+    return { file_id, hash: hashed };
+  }
   const strSVG = await satoriVue(opt, vuetemplateStr);
 
   const resvg = new Resvg(strSVG, {
@@ -69,7 +98,7 @@ export async function generatePng(
   const format = (options.format || "jpg").toLowerCase();
 
   let fileName =
-    options.imgname || `${crypto.randomBytes(16).toString("hex")}.jpg`;
+    options.imgname || `${crypto.randomBytes(6).toString("hex")}.jpg`;
   const ext = path.extname(fileName);
   if (!ext) {
     fileName = `${fileName}.${format === "jpg" ? "jpg" : format}`;
@@ -93,6 +122,7 @@ export async function generatePng(
       path: outputPath,
       width: metadata.width || 0,
       height: metadata.height || 0,
+      hash: hashed,
     };
   }
 
@@ -120,5 +150,6 @@ export async function generatePng(
     path: outputPath,
     width: metadata.width || 0,
     height: metadata.height || 0,
+    hash: hashed,
   };
 }
