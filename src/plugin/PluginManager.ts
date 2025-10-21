@@ -984,12 +984,47 @@ export class PluginManager {
   }
 
   /**
+   * 检查当前账户是否为用户账户
+   * @returns 是否为用户账户
+   */
+  private async isUserAccount(): Promise<boolean> {
+    try {
+      const meConfig = await getConfig("me");
+      if (meConfig && meConfig.info && meConfig.info.type) {
+        return meConfig.info.type._ === "userTypeRegular";
+      }
+      return false;
+    } catch (e) {
+      logger.debug(`[插件管理] 获取账户类型失败:`, e);
+      return false;
+    }
+  }
+
+  /**
+   * 获取自己的 ID
+   * @returns 自己的用户 ID，如果无法获取则返回 null
+   */
+  private async getMyUserId(): Promise<number | null> {
+    try {
+      const meConfig = await getConfig("me");
+      if (meConfig && meConfig.info && typeof meConfig.info.id === "number") {
+        return meConfig.info.id;
+      }
+      return null;
+    } catch (e) {
+      logger.debug(`[插件管理] 获取自己的 ID 失败:`, e);
+      return null;
+    }
+  }
+
+  /**
    * 验证命令权限和场景
    * @param commandName 命令名称
    * @param scope 命令场景要求（字符串或字符串数组）
    * @param permission 命令权限要求
    * @param chatType 当前聊天类型
    * @param userPermission 用户权限
+   * @param userId 用户 ID
    * @returns 是否允许执行
    */
   private async validateCommandAccess(
@@ -997,7 +1032,8 @@ export class PluginManager {
     scope: string | string[] = "all",
     permission: string = "all",
     chatType: "private" | "group" | "channel",
-    userPermission: "owner" | "admin" | "user"
+    userPermission: "owner" | "admin" | "user",
+    userId: number | null = null
   ): Promise<{ allowed: boolean; reason?: string }> {
     // 从配置文件读取覆盖设置
     try {
@@ -1040,17 +1076,54 @@ export class PluginManager {
       }
     }
 
-    // 验证权限
-    if (permission !== "all") {
-      if (permission === "owner" && userPermission !== "owner") {
-        return { allowed: false, reason: "此命令只有超级管理员可以使用" };
-      }
-      if (permission === "admin" && userPermission === "user") {
-        return { allowed: false, reason: "此命令需要管理员权限" };
-      }
-    }
+    // 检查是否为用户账户
+    const isUserAcc = await this.isUserAccount();
 
-    return { allowed: true };
+    // 如果为用户账户，需要额外的权限检查
+    if (isUserAcc) {
+      // 获取自己的 ID
+      const myId = await this.getMyUserId();
+
+      // 如果是自己，给予 owner 权限
+      if (userId !== null && myId !== null && userId === myId) {
+        return { allowed: true };
+      }
+
+      // 用户账户下：除了 admin 和 owner，其他都无权执行
+      if (permission === "all") {
+        // 对于权限为 "all" 的命令，在用户账户下只有 admin、owner 和自己可以执行
+        if (userPermission !== "owner" && userPermission !== "admin") {
+          if (userId === null || myId === null || userId !== myId) {
+            return { allowed: false, reason: "此命令需要管理员权限或以上" };
+          }
+        }
+        return { allowed: true };
+      } else if (permission === "owner") {
+        if (userPermission !== "owner") {
+          return { allowed: false, reason: "此命令只有超级管理员可以使用" };
+        }
+        return { allowed: true };
+      } else if (permission === "admin") {
+        if (userPermission === "user") {
+          return { allowed: false, reason: "此命令需要管理员权限" };
+        }
+        return { allowed: true };
+      }
+      // 默认返回允许（当 permission 不是 "all"、"owner"、"admin" 时）
+      return { allowed: true };
+    } else {
+      // Bot 账户：按原逻辑处理，Bot 自身相当于 owner
+      // 验证权限
+      if (permission !== "all") {
+        if (permission === "owner" && userPermission !== "owner") {
+          return { allowed: false, reason: "此命令只有超级管理员可以使用" };
+        }
+        if (permission === "admin" && userPermission === "user") {
+          return { allowed: false, reason: "此命令需要管理员权限" };
+        }
+      }
+      return { allowed: true };
+    }
   }
 
   /**
@@ -1192,14 +1265,11 @@ export class PluginManager {
           internal.scope || "all",
           internal.permission || "all",
           chatType,
-          userPermission
+          userPermission,
+          userId
         );
 
         if (!validation.allowed) {
-          const { sendMessage } = await import("@TDLib/function/message.ts");
-          await sendMessage(this.client, message.message.chat_id, {
-            text: `❌ ${validation.reason || "无权限执行此命令"}`,
-          });
           return;
         }
 
@@ -1222,7 +1292,8 @@ export class PluginManager {
             commandDef.scope || "all",
             commandDef.permission || "all",
             chatType,
-            userPermission
+            userPermission,
+            userId
           );
 
           if (!validation.allowed) {
