@@ -24,7 +24,7 @@ FuyuBot 是一个基于 **TDLib** 封装的 **Telegram Bot 框架**，目标是�
 - 🧩 **插件系统**，模块化扩展
 - 👥 支持 **Bot 账号** 与 **用户账号（自走人形）**
 - 🔧 现代化开发：ESM + TypeScript
-- 🛠️ [插件开发文档](plugins/README.md)
+- 🛠️ [插件开发文档](https://catmoecircle.github.io/FuyuBot-docs/docs/plugin/)
 
 ---
 
@@ -34,9 +34,9 @@ FuyuBot 是一个基于 **TDLib** 封装的 **Telegram Bot 框架**，目标是�
 - **pnpm**(推荐，亦可使用 npm/yarn)
 - **MongoDB**(推荐使用 [MongoDB Community Server](https://www.mongodb.com/try/download/community),也可以使用自己的`MongoDB Server`)
 
-如果你想远程访问 MongoDB 请务必开启 **MongoDB 用户认证**,
-数据库 GUI 访问 desktop: [MongoDB Compass](https://www.mongodb.com/try/download/compass)
-Android: [Mongodb](https://github.com/vedfi/mondroid)
+### 详细安装文档
+
+[使用指南](https://catmoecircle.github.io/FuyuBot-docs/docs/start/)
 
 ---
 
