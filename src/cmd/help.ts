@@ -164,14 +164,11 @@ export function createHelpHandler(
         // 跳过没有命令的插件
         if (commands.length === 0) continue;
 
-        // 先按 showInHelp 标记过滤（若所有命令都被标记为隐藏，则回退为显示全部）
-        const visibleByFlag = commands.filter(([, def]) => {
+        // 先按 showInHelp 标记过滤
+        const effectiveCommands = commands.filter(([, def]) => {
           // @ts-ignore
           return (def?.showInHelp as unknown) !== false;
         });
-
-        const effectiveCommands =
-          visibleByFlag.length === 0 ? commands : visibleByFlag;
 
         // 再按当前 chatType + userPermission 过滤（支持 config 覆盖）
         // 对于显示，超级管理员在私聊可以看到所有权限的命令
