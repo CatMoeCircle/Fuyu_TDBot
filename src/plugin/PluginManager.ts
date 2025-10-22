@@ -450,7 +450,7 @@ export class PluginManager {
   }
 
   /**
-   * 获取自带（系统）命令信息列表
+   * 获取内置命令信息列表
    */
   getInternalCommands(): Array<{
     name: string;
@@ -1135,27 +1135,34 @@ export class PluginManager {
       await this.handleCommand(update);
     }
 
-    // 将更新分发给所有插件的更新处理器
+    // 收集所有插件处理任务
+    const promises: Promise<void>[] = [];
+
     for (const pluginInfo of this.plugins.values()) {
       const updateType = update._;
       const handler = pluginInfo.instance.updateHandlers[updateType];
       if (handler) {
-        try {
-          const typedHandler = handler.handler as (
-            update: Update
-          ) => Promise<void> | void;
-          try {
-            await typedHandler(update);
-          } catch (err) {
-            logger.error(
-              `[插件管理] 插件 ${pluginInfo.name} 更新处理器执行出错:`,
-              err
-            );
-          }
-        } catch (e) {
-          logger.error(`[插件管理] 插件 ${pluginInfo.name} 更新处理器出错:`, e);
-        }
+        promises.push(
+          (async () => {
+            try {
+              const typedHandler = handler.handler as (
+                update: Update
+              ) => Promise<void> | void;
+              await typedHandler(update);
+            } catch (err) {
+              logger.error(
+                `[插件管理] 插件 ${pluginInfo.name} 更新处理器执行出错:`,
+                err
+              );
+            }
+          })()
+        );
       }
+    }
+
+    // 使用 allSettled：所有插件并行执行，互不阻塞
+    if (promises.length > 0) {
+      Promise.allSettled(promises);
     }
   }
 
@@ -1200,7 +1207,6 @@ export class PluginManager {
       return;
     }
 
-    // 解析命令和参数（去掉前缀并按空白分隔）
     const parts = messageText.slice(prefix.length).trim().split(/\s+/);
     let commandName = parts[0];
     const args = parts.slice(1);
@@ -1286,7 +1292,6 @@ export class PluginManager {
       const commandDef = pluginInfo.instance.cmdHandlers[commandName];
       if (commandDef) {
         try {
-          // 验证权限和场景
           const validation = await this.validateCommandAccess(
             commandName,
             commandDef.scope || "all",
@@ -1300,10 +1305,13 @@ export class PluginManager {
             return;
           }
 
-          await commandDef.handler(message, args);
+          Promise.resolve(commandDef.handler(message, args)).catch((e: any) => {
+            logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
+          });
           return;
         } catch (e) {
           logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
+          return;
         }
       }
     }
