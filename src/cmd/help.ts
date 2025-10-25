@@ -7,10 +7,11 @@ import template from "./vue/help.vue?raw";
 import { sendMessage, deleteMessage } from "@TDLib/function/message.ts";
 import { updateImgCache } from "@db/update.ts";
 import { deleteImgCache } from "@db/delete.ts";
+import type { CommandScope, CommandPermission } from "@plugin/BasePlugin.ts";
 
 export const description = "帮助命令 列出所有可用命令";
-export const scope = "all"; // 可选：可以设置为 "private" | "group" | "channel" | "all"
-export const permission = "all"; // 可选：可以设置为 "owner" | "admin" | "all"
+export const scope: CommandScope = "all";
+export const permission: CommandPermission = "all";
 
 export function createHelpHandler(
   client: Client,
@@ -18,8 +19,8 @@ export function createHelpHandler(
   getInternalCommands?: () => Array<{
     name: string;
     description?: string;
-    scope?: string;
-    permission?: string;
+    scope?: CommandScope;
+    permission?: CommandPermission;
   }>
 ) {
   return async (update: updateNewMessage, _args?: string[]) => {
@@ -65,36 +66,36 @@ export function createHelpHandler(
       const { isPrivate, isGroup, isChannel } = await import(
         "@TDLib/function/index.ts"
       );
-      let chatType: "private" | "group" | "channel" = "private";
-      if (await isPrivate(client, chatId)) chatType = "private";
-      else if (await isChannel(client, chatId)) chatType = "channel";
-      else if (await isGroup(client, chatId)) chatType = "group";
+
+      const chatType: CommandScope = (await isPrivate(client, chatId))
+        ? "private"
+        : (await isChannel(client, chatId))
+        ? "channel"
+        : (await isGroup(client, chatId))
+        ? "group"
+        : "private";
 
       // 读取管理员配置以判定用户权限
       const adminConfig = await getConfig("admin");
-      let userPermission: "owner" | "admin" | "user" = "user";
-      let userId: number | null = null;
-      if (update.message.sender_id?._ === "messageSenderUser") {
-        userId = update.message.sender_id.user_id;
-        if (adminConfig?.super_admin === userId) userPermission = "owner";
-        else if (adminConfig?.admin && Array.isArray(adminConfig.admin)) {
-          if (adminConfig.admin.includes(userId)) userPermission = "admin";
-        }
-      }
+      const sender = update.message.sender_id;
+      const userId =
+        sender?._ === "messageSenderUser" ? sender.user_id : sender.chat_id;
+      const userPermission =
+        userId === adminConfig?.super_admin
+          ? "owner"
+          : Array.isArray(adminConfig?.admin) &&
+            adminConfig.admin.includes(userId)
+          ? "admin"
+          : "user";
 
       // 读取命令覆盖配置（用于 scope/permission 的覆盖）
-      const configData = await (async () => {
-        try {
-          return await getConfig("config");
-        } catch {
-          return null;
-        }
-      })();
+      const configData = await getConfig("config").catch(() => null);
 
+      // 验证命令在当前聊天类型和用户权限下是否可见
       const validateAccess = (
         commandName: string,
-        scope: string | string[] = "all",
-        permission: string = "all",
+        scope: CommandScope = "all",
+        permission: CommandPermission = "all",
         forDisplay: boolean = false
       ): { allowed: boolean } => {
         try {
@@ -136,8 +137,8 @@ export function createHelpHandler(
       // 过滤内置命令，使其也遵循场景与权限的显示规则
       // 对于显示（forDisplay=true），超级管理员在私聊可以看到所有权限的命令
       const visibleInternalCommands = internalCommands.filter((cmd) => {
-        const scope = cmd.scope || "all";
-        const permission = cmd.permission || "all";
+        const scope: CommandScope = cmd.scope || "all";
+        const permission: CommandPermission = cmd.permission || "all";
         return validateAccess(cmd.name, scope, permission, true).allowed;
       });
 

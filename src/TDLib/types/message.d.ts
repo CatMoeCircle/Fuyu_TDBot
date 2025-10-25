@@ -109,12 +109,14 @@ export type sendMessage = {
   readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
   /** 回复消息 ID */
   readonly reply_to_message_id?: number;
-  /** 话题模式群组 话题ID */
-  readonly thread_id?: number;
+  /** 聊天中的消息主题 */
+  readonly topic_id?: topicType;
   /** 是否禁用链接预览 */
   readonly link_preview?: boolean;
   /** TDLib 原始调用方法 */
   readonly invoke?: Td$sendMessage;
+  /** 发送消息的超时时间，单位秒 默认 */
+  readonly timeout?: number;
 };
 
 export type sendMessageAlbum = {
@@ -129,8 +131,8 @@ export type sendMessageAlbum = {
   readonly caption?: string;
   /** 回复消息 ID */
   readonly reply_to_message_id?: number;
-  /** 话题模式群组 话题ID */
-  readonly thread_id?: number;
+  /** 聊天中的消息主题 */
+  readonly topic_id?: topicType;
   /** TDLib 原始调用方法 */
   readonly invoke?: Td$sendMessageAlbum;
 };
@@ -159,3 +161,30 @@ export type editMessageMedia = {
   /** 媒体内容 */
   readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
 };
+
+/** 非论坛超级群组聊天中的一个主题 */
+export type ThreadType = {
+  /** 非论坛超级群组聊天中的一个主题 */
+  message_thread_id: number;
+};
+
+export type ForumType = {
+  /** 论坛超级群组聊天或与机器人聊天中的一个主题 */
+  forum_topic_id: number;
+};
+
+export type DirectMessagesType = {
+  /** 当前用户管理的频道直接消息聊天中的一个主题。 */
+  direct_topic_id: number;
+};
+
+export type SavedMessages = {
+  /** 当前用户的已保存(收藏夹)消息聊天中的一个主题。 */
+  saved_topic_id: number;
+};
+
+export type topicType =
+  | ThreadType
+  | ForumType
+  | DirectMessagesType
+  | SavedMessages;

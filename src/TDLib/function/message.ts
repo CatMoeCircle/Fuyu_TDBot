@@ -7,6 +7,7 @@ import type {
   editMessageText as Td$editMessageTextOriginal,
   editMessageMedia as Td$editMessageMediaOriginal,
   InputMessageContent$Input,
+  MessageTopic$Input,
 } from "tdlib-types";
 import type {
   sendMessageAlbum as Td$sendMessageAlbum,
@@ -18,6 +19,7 @@ import type {
   editMessageCaption as Td$editMessageCaption,
   editMessageText as Td$editMessageText,
   editMessageMedia as Td$editMessageMedia,
+  topicType,
 } from "../types/message.ts";
 import { parseTextEntities } from "./index.ts";
 
@@ -33,8 +35,15 @@ export async function sendMessage(
   chat_id: number,
   params: Td$sendMessage
 ) {
-  const { text, media, reply_to_message_id, thread_id, invoke, link_preview } =
-    params;
+  const {
+    text,
+    media,
+    reply_to_message_id,
+    topic_id,
+    invoke,
+    link_preview,
+    timeout = 360,
+  } = params;
 
   try {
     // 根据 media 类型构建 input_message_content
@@ -51,7 +60,9 @@ export async function sendMessage(
     const payload: Td$sendMessageOriginal = {
       _: "sendMessage",
       chat_id,
-      ...(thread_id !== undefined ? { message_thread_id: thread_id } : {}),
+      ...(topic_id !== undefined
+        ? { topic_id: buildInputTopicID(topic_id) }
+        : {}),
       ...(text !== undefined && media === undefined
         ? {
             input_message_content: {
@@ -80,14 +91,38 @@ export async function sendMessage(
       ...invoke,
     });
 
-    for await (const update of client.iterUpdates()) {
+    // 使用 Promise.race 实现超时控制
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`发送消息超时 (${timeout}s)`));
+      }, timeout * 1000);
+    });
+
+    try {
+      await Promise.race([
+        (async () => {
+          for await (const update of client.iterUpdates()) {
+            if (
+              update._ === "updateMessageSendSucceeded" &&
+              update.old_message_id === oldMessage.id &&
+              update.message.chat_id === oldMessage.chat_id
+            ) {
+              return update.message;
+            }
+          }
+        })(),
+        timeoutPromise,
+      ]);
+    } catch (error) {
+      const err: any = error;
       if (
-        update._ === "updateMessageSendSucceeded" &&
-        update.old_message_id === oldMessage.id &&
-        update.message.chat_id === oldMessage.chat_id
+        typeof err?.message === "string" &&
+        err.message.includes("发送消息超时")
       ) {
-        return update.message;
+        logger.warn(`sendMessage: ${err.message}`, chat_id, oldMessage.id);
+        throw error;
       }
+      throw error;
     }
     return;
   } catch (error) {
@@ -110,7 +145,7 @@ export async function sendMessageAlbum(
   chat_id: number,
   params: Td$sendMessageAlbum
 ) {
-  const { medias, caption, reply_to_message_id, thread_id, invoke } = params;
+  const { medias, caption, reply_to_message_id, topic_id, invoke } = params;
 
   // medias 为空或不是数组时直接走 invoke
   if (!Array.isArray(medias) || medias.length === 0) {
@@ -118,7 +153,7 @@ export async function sendMessageAlbum(
     const payload: Td$sendMessageAlbumOriginal = {
       _: "sendMessageAlbum",
       chat_id,
-      message_thread_id: thread_id,
+      topic_id: buildInputTopicID(topic_id),
       ...(reply_to_message_id !== undefined
         ? {
             reply_to: {
@@ -164,7 +199,7 @@ export async function sendMessageAlbum(
     const payload: Td$sendMessageAlbumOriginal = {
       _: "sendMessageAlbum",
       chat_id,
-      message_thread_id: thread_id,
+      topic_id: buildInputTopicID(topic_id),
       input_message_contents: input_message_contents,
       ...(reply_to_message_id !== undefined
         ? {
@@ -661,4 +696,46 @@ async function buildInputMessageContent(
     };
   }
   return input_message_content;
+}
+
+function buildInputTopicID(
+  topic_id?: topicType
+): MessageTopic$Input | undefined {
+  if (!topic_id) {
+    return undefined;
+  }
+
+  // 非论坛超级群组聊天中的一个主题
+  if ("message_thread_id" in topic_id) {
+    return {
+      _: "messageTopicThread",
+      message_thread_id: topic_id.message_thread_id,
+    };
+  }
+
+  // 论坛超级群组聊天或与机器人聊天中的一个主题
+  if ("forum_topic_id" in topic_id) {
+    return {
+      _: "messageTopicForum",
+      forum_topic_id: topic_id.forum_topic_id,
+    };
+  }
+
+  // 当前用户管理的频道直接消息聊天中的一个主题
+  if ("direct_topic_id" in topic_id) {
+    return {
+      _: "messageTopicDirectMessages",
+      direct_messages_chat_topic_id: topic_id.direct_topic_id,
+    };
+  }
+
+  // 当前用户的已保存(收藏夹)消息聊天中的一个主题
+  if ("saved_topic_id" in topic_id) {
+    return {
+      _: "messageTopicSavedMessages",
+      saved_messages_topic_id: topic_id.saved_topic_id,
+    };
+  }
+
+  return undefined;
 }
