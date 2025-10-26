@@ -148,7 +148,7 @@ async function ensureDatabase(): Promise<Db> {
             { type: "cmd" },
             {
               $setOnInsert: {
-                PREFIXES: ["/", "!", "！", ".", "~", "^"],
+                PREFIXES: ["/", "!", "！", ".", "#"],
               },
             },
             { upsert: true }

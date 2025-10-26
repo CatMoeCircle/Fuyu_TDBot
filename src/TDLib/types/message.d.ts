@@ -133,6 +133,8 @@ export type sendMessageAlbum = {
   readonly reply_to_message_id?: number;
   /** 聊天中的消息主题 */
   readonly topic_id?: topicType;
+  /** 发送消息的超时时间，单位秒 默认1800秒 (半小时) */
+  readonly timeout?: number;
   /** TDLib 原始调用方法 */
   readonly invoke?: Td$sendMessageAlbum;
 };

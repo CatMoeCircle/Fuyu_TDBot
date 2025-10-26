@@ -1180,12 +1180,13 @@ export class PluginManager {
 
     const messageText = text.text.text;
 
-    // 支持多种命令前缀 (例如: `/`, `!`, `！`, `.`, `~`, `^`)，可通过数据库配置 `cmd` 类型的 `PREFIXES` 覆盖
-    let prefixes = ["/", "!", "！", ".", "~", "^"];
+    // 支持多种命令前缀 (例如: `/`, `!`, `！`, `.`)，可通过数据库配置 `cmd` 类型的 `PREFIXES` 覆盖
+    let prefixes = ["/", "!", "！", ".", "#"];
 
     // 尝试从配置中获取自定义前缀
     try {
       const configData = await getConfig("config");
+
       if (
         configData &&
         configData.PREFIXES &&
@@ -1193,7 +1194,6 @@ export class PluginManager {
         configData.PREFIXES.length > 0
       ) {
         prefixes = configData.PREFIXES;
-        logger.debug(`[插件管理] 使用自定义命令前缀:`, prefixes);
       }
     } catch (configError) {
       logger.debug(

@@ -7,7 +7,10 @@ import type {
   editMessageText as Td$editMessageTextOriginal,
   editMessageMedia as Td$editMessageMediaOriginal,
   InputMessageContent$Input,
+  InputMessageReplyTo$Input,
   MessageTopic$Input,
+  message,
+  messages,
 } from "tdlib-types";
 import type {
   sendMessageAlbum as Td$sendMessageAlbum,
@@ -28,13 +31,12 @@ import { parseTextEntities } from "./index.ts";
  * @param client - TDLib 客户端实例
  * @param chat_id - 对话id
  * @param params - 发送消息参数
- * @returns  发送的消息
  */
 export async function sendMessage(
   client: Client,
   chat_id: number,
   params: Td$sendMessage
-) {
+): Promise<message | undefined> {
   const {
     text,
     media,
@@ -45,180 +47,183 @@ export async function sendMessage(
     timeout = 360,
   } = params;
 
+  // 构建输入消息内容
   try {
-    // 根据 media 类型构建 input_message_content
-    let input_message_content: InputMessageContent$Input | undefined;
-
-    if (media !== undefined) {
-      input_message_content = await buildInputMessageContent(
-        client,
-        text,
-        media
-      );
-    }
+    const input_message_content: InputMessageContent$Input | undefined =
+      media !== undefined
+        ? await buildInputMessageContent(client, text, media)
+        : text !== undefined
+        ? {
+            _: "inputMessageText",
+            text: await parseTextEntities(client, text, "MarkdownV2"),
+            link_preview_options: {
+              _: "linkPreviewOptions",
+              is_disabled: link_preview ?? false,
+            },
+          }
+        : undefined;
 
     const payload: Td$sendMessageOriginal = {
       _: "sendMessage",
       chat_id,
-      ...(topic_id !== undefined
-        ? { topic_id: buildInputTopicID(topic_id) }
-        : {}),
-      ...(text !== undefined && media === undefined
-        ? {
-            input_message_content: {
-              _: "inputMessageText",
-              text: await parseTextEntities(client, text, "MarkdownV2"),
-              link_preview_options: link_preview
-                ? { _: "linkPreviewOptions", is_disabled: link_preview }
-                : { _: "linkPreviewOptions", is_disabled: false },
-            },
-          }
-        : {}),
-      ...(input_message_content !== undefined ? { input_message_content } : {}),
-      ...(reply_to_message_id !== undefined
-        ? {
-            reply_to: {
-              _: "inputMessageReplyToExternalMessage",
-              chat_id,
-              message_id: reply_to_message_id,
-            },
-          }
-        : {}),
+      ...(topic_id && { topic_id: buildInputTopicID(topic_id) }),
+      ...(reply_to_message_id && {
+        reply_to: {
+          _: "inputMessageReplyToExternalMessage",
+          chat_id,
+          message_id: reply_to_message_id,
+        },
+      }),
+      ...(input_message_content && { input_message_content }),
     };
 
-    const oldMessage = await client.invoke({
-      ...payload,
-      ...invoke,
-    });
+    // 发送消息
+    const oldMessage = await client.invoke({ ...payload, ...invoke });
 
-    // 使用 Promise.race 实现超时控制
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         reject(new Error(`发送消息超时 (${timeout}s)`));
       }, timeout * 1000);
+
+      // race 完成后清除定时器
+      timeoutPromise.finally(() => clearTimeout(timer));
     });
 
-    try {
-      await Promise.race([
-        (async () => {
-          for await (const update of client.iterUpdates()) {
-            if (
-              update._ === "updateMessageSendSucceeded" &&
-              update.old_message_id === oldMessage.id &&
-              update.message.chat_id === oldMessage.chat_id
-            ) {
-              return update.message;
-            }
-          }
-        })(),
-        timeoutPromise,
-      ]);
-    } catch (error) {
-      const err: any = error;
-      if (
-        typeof err?.message === "string" &&
-        err.message.includes("发送消息超时")
-      ) {
-        logger.warn(`sendMessage: ${err.message}`, chat_id, oldMessage.id);
-        throw error;
+    // 等待发送成功的更新
+    const sendPromise = (async () => {
+      for await (const update of client.iterUpdates()) {
+        if (
+          update._ === "updateMessageSendSucceeded" &&
+          update.old_message_id === oldMessage.id &&
+          update.message.chat_id === oldMessage.chat_id
+        )
+          return update.message;
       }
-      throw error;
-    }
-    return;
+    })();
+
+    // 等待发送超时
+    return await Promise.race([sendPromise, timeoutPromise]);
   } catch (error) {
-    logger.error("sendMessage:发送消息失败", error);
-    throw new Error("发送消息失败", { cause: error });
+    const err = error as Error;
+    if (err.message.includes("发送消息超时")) {
+      logger.warn(`sendMessage: ${err.message}`);
+    } else {
+      logger.error("sendMessage: 发送消息失败", error);
+    }
+    throw err;
   }
 }
+
 /**
- * 将 2-10 条消息组合到一个相册中。目前，只有音频、文档、照片和视频消息可以分组到相册中
- *
- * 文档和音频文件只能与相同类型的消息分组到相册中
- *
+ * 将 2–10 条消息组合成相册发送（仅支持音频、文档、照片、视频）
  * @param client - TDLib 客户端实例
- * @param chat_id - 对话id
- * @param params - 发送消息参数
- * @returns 返回已发送的消息
+ * @param chat_id - 对话 ID
+ * @param params - 发送参数
  */
 export async function sendMessageAlbum(
   client: Client,
   chat_id: number,
   params: Td$sendMessageAlbum
-) {
-  const { medias, caption, reply_to_message_id, topic_id, invoke } = params;
+): Promise<messages | undefined> {
+  const {
+    medias,
+    caption = "",
+    reply_to_message_id,
+    topic_id,
+    timeout = 1800,
+    invoke,
+  } = params;
 
-  // medias 为空或不是数组时直接走 invoke
+  const topic = buildInputTopicID(topic_id);
+  const reply_to: InputMessageReplyTo$Input | undefined = reply_to_message_id
+    ? {
+        _: "inputMessageReplyToMessage",
+        message_id: reply_to_message_id,
+      }
+    : undefined;
+
+  // 无媒体时直接发送
   if (!Array.isArray(medias) || medias.length === 0) {
-    // 允许用户自定义 input_message_contents 或其它参数
-    const payload: Td$sendMessageAlbumOriginal = {
-      _: "sendMessageAlbum",
-      chat_id,
-      topic_id: buildInputTopicID(topic_id),
-      ...(reply_to_message_id !== undefined
-        ? {
-            reply_to: {
-              _: "inputMessageReplyToExternalMessage",
-              chat_id,
-              message_id: reply_to_message_id,
-            },
-          }
-        : {}),
-    };
     try {
-      const result = await client.invoke({
-        ...payload,
+      return await client.invoke({
+        _: "sendMessageAlbum",
+        chat_id,
+        topic_id: topic,
+        reply_to,
         ...invoke,
       });
-      return result;
     } catch (error) {
       throw new Error("发送消息失败", { cause: error });
     }
   }
 
-  if (medias.length >= 11) {
-    throw new Error(`媒体数量超过限制 ${medias.length}`);
-  }
+  if (medias.length > 10)
+    throw new Error(`媒体数量超过限制 (${medias.length})`);
 
   try {
-    // medias 存在且有效时，正常处理
-    const input_message_contents: InputMessageContent$Input[] =
-      await Promise.all(
-        medias.map(async (m) => {
-          const content = await buildInputMessageContent(
-            client,
-            caption !== undefined ? caption : "",
-            m as any
-          );
-          if (content === undefined) {
-            throw new Error("不支持的 media 类型");
-          }
-          return content;
-        })
-      );
+    // 构建输入消息内容
+    const input_message_contents = await Promise.all(
+      medias.map(async (m) => {
+        const content = await buildInputMessageContent(client, caption, m);
+        if (!content) throw new Error("不支持的 media 类型");
+        return content;
+      })
+    );
 
     const payload: Td$sendMessageAlbumOriginal = {
       _: "sendMessageAlbum",
       chat_id,
-      topic_id: buildInputTopicID(topic_id),
-      input_message_contents: input_message_contents,
-      ...(reply_to_message_id !== undefined
-        ? {
-            reply_to: {
-              _: "inputMessageReplyToExternalMessage",
-              chat_id,
-              message_id: reply_to_message_id,
-            },
-          }
-        : {}),
+      topic_id: topic,
+      input_message_contents,
+      reply_to,
     };
 
-    const result = await client.invoke({
-      ...payload,
-      ...invoke,
+    const result = await client.invoke({ ...payload, ...invoke });
+    const messages = result.messages ?? [];
+
+    if (messages.length === 0) return result;
+
+    // 等待发送成功回执
+    const oldIds = new Set<number>(
+      messages.map((m: any) => m.id).filter((id: any) => typeof id === "number")
+    );
+    const collected: messages = {
+      _: "messages",
+      total_count: messages.length,
+      messages: [],
+    };
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`发送消息超时 (${timeout}s)`));
+      }, timeout * 1000);
+
+      // race 完成后清除定时器
+      timeoutPromise.finally(() => clearTimeout(timer));
     });
-    return result;
+
+    const sendPromise = (async () => {
+      for await (const update of client.iterUpdates()) {
+        if (
+          update._ === "updateMessageSendSucceeded" &&
+          oldIds.has(update.old_message_id) &&
+          update.message.chat_id === chat_id
+        ) {
+          collected.messages.push(update.message);
+          oldIds.delete(update.old_message_id);
+          if (oldIds.size === 0) return collected;
+        }
+      }
+    })();
+
+    return await Promise.race([sendPromise, timeoutPromise]);
   } catch (error) {
-    throw new Error("发送消息失败", { cause: error });
+    const err = error as Error;
+    if (err.message.includes("发送消息超时"))
+      logger.warn(`sendMessageAlbum: ${err.message}`, chat_id);
+    else logger.error("sendMessageAlbum: 发送消息失败", err);
+
+    throw err;
   }
 }
 
@@ -226,49 +231,44 @@ export async function sendMessageAlbum(
  * 删除消息
  * @param client - TDLib 客户端实例
  * @param chat_id - 聊天ID
- * @param message_ids - 消息ID或消息ID数组
- * @param revoke - 是否撤回消息，默认为true
- * @returns  - 删除消息的结果
+ * @param message_ids - 单个或多个消息ID
+ * @param revoke - 是否撤回消息（默认 true）
  */
 export async function deleteMessage(
   client: Client,
   chat_id: number,
   message_ids: number | number[],
   revoke = true
-) {
+): Promise<void> {
+  const ids = (Array.isArray(message_ids) ? message_ids : [message_ids])
+    .map(Number)
+    .filter((id) => Number.isFinite(id));
+
+  if (ids.length === 0) {
+    logger.error("deleteMessage: 无效消息ID", message_ids);
+    return;
+  }
   try {
-    // 转换为数组并执行验证
-    let ids = Array.isArray(message_ids) ? message_ids : [message_ids];
-
-    // 过滤掉无效值（null、undefined、NaN、空字符串）
-    ids = ids.filter((id) => {
-      const numId = Number(id);
-      return id !== null && id !== undefined && !isNaN(numId);
+    await client.invoke({
+      _: "deleteMessages",
+      chat_id,
+      message_ids: ids,
+      revoke,
     });
-
-    if (ids.length === 0) {
-      logger.error("deleteMessage: 没有有效的消息ID", message_ids);
-      throw new Error("没有有效的消息ID");
-    }
-
-    // 如果是多个消息，逐条删除，避免全部失败
+  } catch {
     for (const id of ids) {
       try {
         await client.invoke({
           _: "deleteMessages",
-          chat_id: chat_id,
+          chat_id,
           message_ids: [id],
-          revoke: revoke,
+          revoke,
         });
-      } catch (error) {
-        logger.warn("deleteMessage: 删除消息失败", error, chat_id, id);
-        // 继续删除其他消息
+      } catch (err) {
+        logger.warn("deleteMessage: 删除失败", err, chat_id, id);
       }
     }
-  } catch (error) {
-    logger.warn("deleteMessage: 删除消息失败", error, chat_id, message_ids);
   }
-  return;
 }
 
 /**
