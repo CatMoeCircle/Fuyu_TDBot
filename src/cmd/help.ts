@@ -57,6 +57,8 @@ export function createHelpHandler(
         }
       }
 
+      // 构建图片帮助内容
+
       const plugins = getPlugins();
 
       const internalCommands = getInternalCommands ? getInternalCommands() : [];
@@ -213,13 +215,14 @@ export function createHelpHandler(
         }>;
       }> = [];
 
+      let prefix = config?.PREFIXES?.[0] || "/";
       // 1. 添加系统命令目录（只包含当前用户/场景可见的内置命令）
       if (visibleInternalCommands.length > 0) {
         data.push({
           name: "内置命令",
           desc: "",
           commands: visibleInternalCommands.map((cmd) => ({
-            name: `/${cmd.name}`,
+            name: `${prefix}${cmd.name}`,
             desc: cmd.description || "无描述",
           })),
         });
@@ -231,7 +234,7 @@ export function createHelpHandler(
           name: "插件命令",
           desc: "单命令插件列表",
           commands: singleCommandList.map((item) => ({
-            name: `/${item.cmd}`,
+            name: `${prefix}${item.cmd}`,
             desc: `${item.doc}`,
           })),
         });
@@ -243,7 +246,7 @@ export function createHelpHandler(
           name: plugin.name,
           desc: plugin.description,
           commands: plugin.cmdHandlers.map((cmd) => ({
-            name: `/${cmd.cmd}`,
+            name: `${prefix}${cmd.cmd}`,
             desc: cmd.description,
           })),
         });
