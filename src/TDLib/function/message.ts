@@ -80,13 +80,11 @@ export async function sendMessage(
     // 发送消息
     const oldMessage = await client.invoke({ ...payload, ...invoke });
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         reject(new Error(`发送消息超时 (${timeout}s)`));
       }, timeout * 1000);
-
-      // race 完成后清除定时器
-      timeoutPromise.finally(() => clearTimeout(timer));
     });
 
     // 等待发送成功的更新
@@ -102,7 +100,11 @@ export async function sendMessage(
     })();
 
     // 等待发送超时
-    return await Promise.race([sendPromise, timeoutPromise]);
+    try {
+      return await Promise.race([sendPromise, timeoutPromise]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer as any);
+    }
   } catch (error) {
     const err = error as Error;
     if (err.message.includes("发送消息超时")) {
@@ -193,13 +195,11 @@ export async function sendMessageAlbum(
       messages: [],
     };
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         reject(new Error(`发送消息超时 (${timeout}s)`));
       }, timeout * 1000);
-
-      // race 完成后清除定时器
-      timeoutPromise.finally(() => clearTimeout(timer));
     });
 
     const sendPromise = (async () => {
@@ -216,7 +216,11 @@ export async function sendMessageAlbum(
       }
     })();
 
-    return await Promise.race([sendPromise, timeoutPromise]);
+    try {
+      return await Promise.race([sendPromise, timeoutPromise]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer as any);
+    }
   } catch (error) {
     const err = error as Error;
     if (err.message.includes("发送消息超时"))
