@@ -8,7 +8,6 @@ import type {
   editMessageMedia as Td$editMessageMediaOriginal,
   InputMessageContent$Input,
   InputMessageReplyTo$Input,
-  MessageTopic$Input,
   message,
   messages,
 } from "tdlib-types";
@@ -22,7 +21,6 @@ import type {
   editMessageCaption as Td$editMessageCaption,
   editMessageText as Td$editMessageText,
   editMessageMedia as Td$editMessageMedia,
-  topicType,
 } from "../types/message.ts";
 import { parseTextEntities } from "./index.ts";
 
@@ -66,7 +64,7 @@ export async function sendMessage(
     const payload: Td$sendMessageOriginal = {
       _: "sendMessage",
       chat_id,
-      ...(topic_id && { topic_id: buildInputTopicID(topic_id) }),
+      ...(topic_id && { topic_id }),
       ...(reply_to_message_id && {
         reply_to: {
           _: "inputMessageReplyToExternalMessage",
@@ -136,7 +134,6 @@ export async function sendMessageAlbum(
     invoke,
   } = params;
 
-  const topic = buildInputTopicID(topic_id);
   const reply_to: InputMessageReplyTo$Input | undefined = reply_to_message_id
     ? {
         _: "inputMessageReplyToMessage",
@@ -150,7 +147,7 @@ export async function sendMessageAlbum(
       return await client.invoke({
         _: "sendMessageAlbum",
         chat_id,
-        topic_id: topic,
+        topic_id,
         reply_to,
         ...invoke,
       });
@@ -175,7 +172,7 @@ export async function sendMessageAlbum(
     const payload: Td$sendMessageAlbumOriginal = {
       _: "sendMessageAlbum",
       chat_id,
-      topic_id: topic,
+      topic_id,
       input_message_contents,
       reply_to,
     };
@@ -700,46 +697,4 @@ async function buildInputMessageContent(
     };
   }
   return input_message_content;
-}
-
-function buildInputTopicID(
-  topic_id?: topicType
-): MessageTopic$Input | undefined {
-  if (!topic_id) {
-    return undefined;
-  }
-
-  // 非论坛超级群组聊天中的一个主题
-  if ("message_thread_id" in topic_id) {
-    return {
-      _: "messageTopicThread",
-      message_thread_id: topic_id.message_thread_id,
-    };
-  }
-
-  // 论坛超级群组聊天或与机器人聊天中的一个主题
-  if ("forum_topic_id" in topic_id) {
-    return {
-      _: "messageTopicForum",
-      forum_topic_id: topic_id.forum_topic_id,
-    };
-  }
-
-  // 当前用户管理的频道直接消息聊天中的一个主题
-  if ("direct_topic_id" in topic_id) {
-    return {
-      _: "messageTopicDirectMessages",
-      direct_messages_chat_topic_id: topic_id.direct_topic_id,
-    };
-  }
-
-  // 当前用户的已保存(收藏夹)消息聊天中的一个主题
-  if ("saved_topic_id" in topic_id) {
-    return {
-      _: "messageTopicSavedMessages",
-      saved_messages_topic_id: topic_id.saved_topic_id,
-    };
-  }
-
-  return undefined;
 }
