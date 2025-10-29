@@ -122,9 +122,7 @@ async function ensureDatabase(): Promise<Db> {
         }
 
         if (shouldShowPassword) {
-          logger.warn(
-            `初次使用请使用 /setadmin ${tempPassword} 来设置超级管理员`
-          );
+          logger.warn(`初次使用请使用 /admin ${tempPassword} 来设置超级管理员`);
         }
 
         await Promise.all([
