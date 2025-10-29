@@ -153,3 +153,24 @@ export async function generateImage(
     hash: hashed,
   };
 }
+
+export async function convertPhotoToBase64(photoPath: string | undefined) {
+  // 将本地图片路径转换为 Base64 Data URL
+  if (photoPath) {
+    try {
+      const buffer = await fs.promises.readFile(photoPath);
+      const ext = path.extname(photoPath).slice(1).toLowerCase();
+      const mime =
+        ext === "png"
+          ? "image/png"
+          : ext === "jpg" || ext === "jpeg"
+          ? "image/jpeg"
+          : ext === "webp"
+          ? "image/webp"
+          : "application/octet-stream";
+      return `data:${mime};base64,${buffer.toString("base64")}`;
+    } catch {
+      return undefined;
+    }
+  }
+}

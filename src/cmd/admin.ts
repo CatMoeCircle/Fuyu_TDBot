@@ -1,8 +1,14 @@
 import type { Client } from "tdl";
 import { Plugin } from "@plugin/BasePlugin.ts";
 import logger from "@log/index.ts";
-import { sendMessage } from "@TDLib/function/message.ts";
+import { deleteMessage, sendMessage } from "@TDLib/function/message.ts";
 import { getConfig, updateConfig, removeConfigFields } from "@db/config.ts";
+import vueadmins from "./vue/admins.vue?raw";
+import { getUser } from "@TDLib/function/get.ts";
+import { downloadFile, isGroup } from "@TDLib/function/index.ts";
+import { convertPhotoToBase64, generateImage } from "@function/genImg.ts";
+import { deleteImgCache } from "@db/delete.ts";
+import { updateImgCache } from "@db/update.ts";
 
 export default class setAdmin extends Plugin {
   name = "setAdmin";
@@ -13,11 +19,11 @@ export default class setAdmin extends Plugin {
   constructor(client: Client) {
     super(client);
 
-    // 命令处理器：当收到 /setadmin 时触发
+    // 命令处理器：当收到 /admin 时触发
     this.cmdHandlers = {
       admin: {
         description: "设置管理员(仅限主人)",
-        scope: "private", // 只能在私聊中使用
+        scope: "all",
         handler: async (update, args) => {
           try {
             if (!args || args.length === 0) {
@@ -185,6 +191,135 @@ export default class setAdmin extends Plugin {
               await sendMessage(this.client, update.message.chat_id, {
                 text: "❌ 系统尚未设置超级管理员",
               });
+              return;
+            }
+
+            if (cmd === "list") {
+              // 列出所有管理员
+              const adminList = config.admin || [];
+
+              if (adminList.length === 0) {
+                await sendMessage(this.client, update.message.chat_id, {
+                  text: "当前没有设置任何管理员。",
+                });
+                return;
+              }
+              let admins = [];
+
+              for (const id of adminList) {
+                const user = await getUser(client, id);
+                if (!user) {
+                  continue;
+                }
+                let adminPhoto: string | undefined;
+                if (user.profile_photo?.big.local.path) {
+                  // 如果用户有头像，添加到请求中
+                  adminPhoto = user.profile_photo.big.local.path;
+                } else if (user.profile_photo?.big.remote.id) {
+                  const file = await downloadFile(
+                    this.client,
+                    user.profile_photo?.big.remote.id,
+                    { _: "fileTypeProfilePhoto" }
+                  );
+                  adminPhoto = file.local.path;
+                }
+                admins.push({
+                  id: user.id,
+                  name: user.first_name + " " + user.last_name,
+                  username: user?.usernames?.editable_username,
+                  photo: await convertPhotoToBase64(adminPhoto),
+                });
+              }
+
+              const result = await generateImage(
+                {
+                  width: "auto",
+                  height: "auto",
+                  quality: 1.5,
+                },
+                vueadmins,
+                admins
+              );
+
+              if (result?.file_id && result.hash) {
+                logger.debug("使用缓存的帮助图片 file_id");
+                try {
+                  const sentMessage = await sendMessage(
+                    client,
+                    update.message.chat_id,
+                    {
+                      reply_to_message_id: update.message.id,
+                      media: {
+                        photo: {
+                          id: result.file_id,
+                        },
+                      },
+                    }
+                  );
+
+                  // 180秒后自动删除消息
+                  if (sentMessage) {
+                    setTimeout(async () => {
+                      if (await isGroup(client, update.message.chat_id)) {
+                        // 如果是群聊，删除原消息
+                        deleteMessage(client, update.message.chat_id, [
+                          sentMessage.id,
+                          update.message.id,
+                        ]);
+                      }
+                    }, 180000);
+                  }
+                  return;
+                } catch (e) {
+                  logger.warn("使用缓存的 file_id 发送失败，将重新生成图片", e);
+                  // 如果发送失败，删除缓存并继续生成新图片
+                  await deleteImgCache(result.hash);
+                }
+              }
+
+              const resultmeg = await sendMessage(
+                client,
+                update.message.chat_id,
+                {
+                  reply_to_message_id: update.message.id,
+                  media: {
+                    photo: {
+                      path: result.path,
+                    },
+                    width: result.width,
+                    height: result.height,
+                  },
+                }
+              );
+
+              // 180秒后自动删除消息
+              if (resultmeg) {
+                setTimeout(async () => {
+                  if (await isGroup(client, update.message.chat_id)) {
+                    // 如果是群聊，删除原消息
+                    deleteMessage(client, update.message.chat_id, [
+                      resultmeg.id,
+                      update.message.id,
+                    ]);
+                  }
+                }, 180000);
+              }
+
+              // 保存 file_id 到缓存
+              if (
+                resultmeg &&
+                resultmeg.content._ === "messagePhoto" &&
+                result.hash
+              ) {
+                const file_id =
+                  resultmeg.content.photo.sizes.slice(-1)[0].photo.remote.id;
+                try {
+                  await updateImgCache(result.hash, file_id);
+                  logger.debug("已缓存帮助图片 file_id");
+                } catch (err) {
+                  logger.warn("保存 file_id 缓存失败", err);
+                }
+              }
               return;
             }
 
