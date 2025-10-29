@@ -265,6 +265,7 @@ export function createHelpHandler(
           title: "帮助",
           description: "Fuyu_TDBot - 帮助命令列表",
           data,
+          imgSrc: null,
           version: `Fuyu_TDBot - v${process.env.APP_VERSION || "0.0.0"}`,
         }
       );
