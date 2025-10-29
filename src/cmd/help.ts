@@ -262,8 +262,10 @@ export function createHelpHandler(
         },
         template,
         {
+          title: "帮助",
+          description: "Fuyu_TDBot - 帮助命令列表",
           data,
-          version: process.env.APP_VERSION || "0.0.0",
+          version: `Fuyu_TDBot - v${process.env.APP_VERSION || "0.0.0"}`,
         }
       );
 

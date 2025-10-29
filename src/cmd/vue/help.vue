@@ -2,16 +2,16 @@
     <div class="flex flex-col text-black"
         style="background: linear-gradient(132.5deg, rgba(255, 255, 255, 1) 0%, rgba(206, 237, 219, 1) 100%);">
         <div class="flex absolute h-60 w-full">
-            <img src="https://img.js.design/assets/img/68f3403b3f22157da640de5d.png" class="h-full w-full"
-                style="object-fit: cover;">
+            <img :src="imgSrc ? imgSrc : 'https://img.js.design/assets/img/68f3403b3f22157da640de5d.png'"
+                class="h-full w-full" style="object-fit: cover;">
             <div class="absolute flex h-full w-full"
                 style="background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.09) 70%);">
             </div>
         </div>
         <div class="flex flex-col p-4" style="gap: 1rem;">
             <div class="flex flex-col p-6 mt-2 mb-5" style="gap: 3px;">
-                <h1 class="text-4xl m-0 p-0">帮助</h1>
-                <p class="text-sm text-neutral-400 m-0 p-0 pl-1">Fuyu_TDBot - Help</p>
+                <h1 class="text-4xl m-0 p-0" v-html="title"></h1>
+                <p class="text-sm text-neutral-400 m-0 p-0 pl-1" v-html="description"></p>
             </div>
             <div v-for="plugin in data" :key="plugin.name"
                 class="flex flex-col bg-white/90 bg-opacity-70 p-4 rounded-xl"
@@ -40,14 +40,17 @@
                 </div>
             </div>
             <div class="flex items-center justify-end">
-                <h1 class="flex flex-col m-0 p-0 text-neutral-400 text-xs">Fuyu_TDBot - v{{ version }}</h1>
+                <h1 class="flex flex-col m-0 p-0 text-neutral-400 text-xs" v-html="version"></h1>
             </div>
         </div>
     </div>
 </template>
 <script setup lang="ts">
 defineProps<{
+    title: string;
+    description: string;
     version: string;
+    imgSrc: string;
     data: {
         name: string;
         desc: string;
