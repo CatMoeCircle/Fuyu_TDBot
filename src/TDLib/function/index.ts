@@ -781,7 +781,133 @@ function toTelegram(node: Node | RootContent, original = ""): string {
       // 所有核心逻辑都集中在这里
       if (!hasChildren(node)) return "";
 
-      // 1. 获取块引用内部所有段落的纯文本内容
+      // 1. 检查原始文本中是否有未使用 > 标记的行
+      if (hasPosition(node) && original) {
+        const start = node.position.start.offset;
+        const end = node.position.end.offset;
+        const blockText = original.substring(start, end);
+        const lines = blockText.split("\n");
+
+        // 检查是否有中断的行(不以 > 开头的非空行)
+        let hasInterruption = false;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.trim() && !line.trimStart().startsWith(">")) {
+            hasInterruption = true;
+            break;
+          }
+        }
+
+        // 如果检测到中断,手动处理每一行
+        if (hasInterruption) {
+          const parts: string[] = [];
+          let currentQuote: string[] = [];
+          let hasCollapseMarker = false; // 标记是否有可折叠引用结尾
+
+          for (const line of lines) {
+            const trimmed = line.trimStart();
+            if (trimmed.startsWith(">")) {
+              // 移除 > 前缀和紧跟的一个空格(如果有)
+              let content = trimmed.slice(1);
+              if (content.startsWith(" ")) {
+                content = content.slice(1);
+              }
+
+              // 检查这一行是否是可折叠引用的结尾标记(以 || 结尾)
+              if (content.trimEnd().endsWith("||")) {
+                hasCollapseMarker = true;
+              }
+
+              currentQuote.push(content);
+            } else if (line.trim()) {
+              // 非引用行,结束当前引用块
+              if (currentQuote.length > 0) {
+                // 对引用块内的内容进行 Markdown 格式化
+                const quoteText = currentQuote.join("\n");
+
+                // 如果有可折叠标记,需要特殊处理
+                if (hasCollapseMarker) {
+                  // 移除最后的 || 标记进行格式化
+                  const textWithoutMarker = quoteText.replace(/\|\|[\s]*$/, "");
+                  const formattedQuote = toTelegram(
+                    remark().use(remarkGfm).parse(textWithoutMarker) as Root,
+                    textWithoutMarker
+                  );
+                  // 为格式化后的每一行添加 > 前缀,并在最后添加 || 标记
+                  parts.push(
+                    formattedQuote
+                      .split("\n")
+                      .map((l) => ">" + l)
+                      .join("\n") + "||"
+                  );
+                } else {
+                  const formattedQuote = toTelegram(
+                    remark().use(remarkGfm).parse(quoteText) as Root,
+                    quoteText
+                  );
+                  // 为格式化后的每一行添加 > 前缀
+                  parts.push(
+                    formattedQuote
+                      .split("\n")
+                      .map((l) => ">" + l)
+                      .join("\n")
+                  );
+                }
+                currentQuote = [];
+                hasCollapseMarker = false;
+              }
+              // 非引用行也需要格式化
+              const formattedLine = toTelegram(
+                remark().use(remarkGfm).parse(line) as Root,
+                line
+              );
+              parts.push(formattedLine);
+            } else if (currentQuote.length > 0) {
+              // 空行在引用块内保留
+              currentQuote.push("");
+            } else {
+              // 引用块外的空行
+              parts.push("");
+            }
+          }
+
+          // 处理最后一个引用块
+          if (currentQuote.length > 0) {
+            const quoteText = currentQuote.join("\n");
+
+            if (hasCollapseMarker) {
+              // 移除最后的 || 标记进行格式化
+              const textWithoutMarker = quoteText.replace(/\|\|[\s]*$/, "");
+              const formattedQuote = toTelegram(
+                remark().use(remarkGfm).parse(textWithoutMarker) as Root,
+                textWithoutMarker
+              );
+              // 为格式化后的每一行添加 > 前缀,并在最后添加 || 标记
+              parts.push(
+                formattedQuote
+                  .split("\n")
+                  .map((l) => ">" + l)
+                  .join("\n") + "||"
+              );
+            } else {
+              const formattedQuote = toTelegram(
+                remark().use(remarkGfm).parse(quoteText) as Root,
+                quoteText
+              );
+              parts.push(
+                formattedQuote
+                  .split("\n")
+                  .map((l) => ">" + l)
+                  .join("\n")
+              );
+            }
+          }
+
+          return parts.filter((p) => p !== "").join("\n");
+        }
+      }
+
+      // 2. 正常处理:获取块引用内部所有段落的纯文本内容
       // 注意:这里不合并段落,保持每个段落作为独立的行
       const paragraphs: string[] = [];
       for (const child of node.children) {
@@ -795,12 +921,12 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
       const innerContent = paragraphs.join("\n");
 
-      // 2. 定义分隔符（一个独立的 '**' 行）和结尾标记
+      // 3. 定义分隔符（一个独立的 '**' 行）和结尾标记
       const separator = "\n**\n";
       const hasSeparator = innerContent.includes(separator);
       const hasEndMark = innerContent.trim().endsWith("||");
 
-      // 3. 判断是否为可折叠块
+      // 4. 判断是否为可折叠块
       if (hasSeparator && hasEndMark) {
         // 是可折叠块，进行解析和重构
         const contentWithoutMark = innerContent.trim().slice(0, -2);
@@ -812,7 +938,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
         // 即使有多个分隔符，也只处理第一个，其余归为隐藏部分
         const hiddenPart = parts.slice(1).join(separator);
 
-        // 4. 为各部分重新构建 Telegram 格式
+        // 5. 为各部分重新构建 Telegram 格式
         const visibleLines = visiblePart
           .split("\n")
           .map((line) => ">" + line)
