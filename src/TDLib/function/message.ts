@@ -127,7 +127,7 @@ export async function sendMessageAlbum(
 ): Promise<messages | undefined> {
   const {
     medias,
-    caption = "",
+    caption,
     reply_to_message_id,
     topic_id,
     timeout = 1800,
@@ -176,7 +176,6 @@ export async function sendMessageAlbum(
       input_message_contents,
       reply_to,
     };
-
     const result = await client.invoke({ ...payload, ...invoke });
     const messages = result.messages ?? [];
 
@@ -596,6 +595,8 @@ async function buildInputMessageContent(
       caption:
         text !== undefined
           ? await parseTextEntities(client, text, "MarkdownV2")
+          : media.caption
+          ? await parseTextEntities(client, media.caption, "MarkdownV2")
           : undefined,
       has_spoiler: media.has_spoiler || false,
     };
@@ -630,6 +631,8 @@ async function buildInputMessageContent(
       caption:
         text !== undefined
           ? await parseTextEntities(client, text, "MarkdownV2")
+          : media.caption
+          ? await parseTextEntities(client, media.caption, "MarkdownV2")
           : undefined,
     };
   } else if ("audio" in media) {
@@ -663,6 +666,8 @@ async function buildInputMessageContent(
       caption:
         text !== undefined
           ? await parseTextEntities(client, text, "MarkdownV2")
+          : media.caption
+          ? await parseTextEntities(client, media.caption, "MarkdownV2")
           : undefined,
     };
   } else if ("file" in media) {

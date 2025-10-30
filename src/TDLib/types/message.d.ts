@@ -64,6 +64,8 @@ export type photoMessage = {
   readonly height?: number;
   /** 照片剧透遮罩 */
   readonly has_spoiler?: boolean;
+  /** 照片标题 */
+  readonly caption?: string;
 };
 
 // 新增：将 media 中的各项拆成独立接口（与 photo 一致）
@@ -88,6 +90,8 @@ export type videoMessage = {
   readonly has_spoiler?: boolean;
   /** 如果视频预计会流式传输(边下边看) */
   readonly supports_streaming?: boolean;
+  /** 视频标题 */
+  readonly caption?: string;
 };
 
 export type audioMessage = {
@@ -101,6 +105,8 @@ export type audioMessage = {
   readonly title: string;
   /** 音频的执行者;0-64 个字符，可由服务器替换 */
   readonly performe: string;
+  /** 音频描述 */
+  readonly caption?: string;
 };
 
 export type sendMessage = {
@@ -124,10 +130,7 @@ export type sendMessageAlbum = {
   /** 对话 ID */
   readonly chat_id?: number;
   /** 媒体内容 */
-  readonly medias?:
-    | Array<photoMessage | videoMessage>
-    | Array<fileMessage>
-    | Array<audioMessage>;
+  readonly medias?: mediasArray;
   /** 回复消息 ID */
   readonly caption?: string;
   /** 回复消息 ID */
@@ -164,3 +167,8 @@ export type editMessageMedia = {
   /** 媒体内容 */
   readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
 };
+
+export type mediasArray =
+  | Array<photoMessage | videoMessage>
+  | Array<fileMessage>
+  | Array<audioMessage>;
