@@ -5,6 +5,7 @@ import os from "os";
 import si from "systeminformation";
 import type { Client } from "tdl";
 import type { AuthorizationState } from "tdlib-types";
+import qrcode from "qrcode-terminal";
 import logger from "@log/index.ts";
 
 export class ClientManager {
@@ -92,6 +93,7 @@ export class ClientManager {
           choices: [
             { name: "Bot", value: "bot" },
             { name: "User", value: "user" },
+            { name: "QR Code(扫码登录)", value: "qr" },
           ],
         });
 
@@ -104,6 +106,8 @@ export class ClientManager {
 
           await this.client?.loginAsBot(token);
           return;
+        } else if (type === "qr") {
+          client.invoke({ _: "requestQrCodeAuthentication" });
         } else {
           // 2. 如果是 User → 输入手机号
           const phone = await input({
@@ -165,6 +169,13 @@ export class ClientManager {
         } catch (err: any) {
           logger.error("输入密码时出错：", err);
         }
+      }
+      if (
+        authorization_state._ ===
+        "authorizationStateWaitOtherDeviceConfirmation"
+      ) {
+        const qrlink = authorization_state.link;
+        qrcode.generate(qrlink, { small: true });
       }
       if (authorization_state._ === "authorizationStateReady") {
         const me = await this.client?.invoke({ _: "getMe" });

@@ -152,7 +152,6 @@ export async function setUserAsMember(
  * @param client - TDLib 客户端实例
  * @param chat_id - 对话id
  * @param member_id - 用户对象
- * @param is_member - 用户是聊天的成员
  * @param restricted_until_date - 时间点（Unix 时间戳），何时将取消对用户的限制;如果永远填写 0。如果用户被限制的时间超过 366 天或从当前时间起的时间少于 30 秒，则该用户将被视为永久受到限制。
  * @param permissions - 权限列表
  */
@@ -571,30 +570,30 @@ export async function chatoruserMdown(
         if (
           supergroup &&
           supergroup.usernames &&
-          supergroup.usernames.active_usernames &&
-          supergroup.usernames.active_usernames.length > 0
+          supergroup.usernames.editable_username &&
+          supergroup.usernames.editable_username.length > 0
         ) {
           // 如果超级群组有用户名，使用 tg://resolve?domain=username
-          const username = supergroup.usernames.active_usernames[0];
+          const username = supergroup.usernames.editable_username[0];
 
-          if (!name) {
+          if (name) {
             return `[${sender_id.chat_id}](tg://resolve?domain=${username})`;
           }
 
-          return `[${chat.title}](tg://openmessage?chat_id=${sender_id.chat_id})`;
+          return `[${chat.title}](id:${sender_id.chat_id})`;
         }
       }
 
-      // 如果不是超级群组或没有用户名，使用 tg://openmessage?chat_id=
+      // 如果不是超级群组或没有用户名
       if (!name) {
-        return `[${sender_id.chat_id}](tg://openmessage?chat_id=${sender_id.chat_id})`;
+        return `[${sender_id.chat_id}]`;
       }
 
-      return `[${chat.title}](tg://openmessage?chat_id=${sender_id.chat_id})`;
+      return `[${chat.title}](id:${sender_id.chat_id})`;
     } catch (error) {
       logger.error("获取聊天信息时出错:", error);
       // 发生错误时回退到使用 openmessage
-      return `[${sender_id.chat_id}](tg://openmessage?chat_id=${sender_id.chat_id})`;
+      return `[${sender_id.chat_id}]`;
     }
   }
 }

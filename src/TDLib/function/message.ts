@@ -267,6 +267,8 @@ export async function deleteMessage(
       } catch (err) {
         logger.warn("deleteMessage: 删除失败", err, chat_id, id);
       }
+      // 延迟 1s，防止频繁请求
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 }
