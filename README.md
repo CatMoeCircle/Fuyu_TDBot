@@ -18,6 +18,7 @@ A modern **Telegram Bot framework** built with **Node.js + TypeScript + TDLib**,
 
 ### 📌 项目简介
 FuyuBot 是一个基于 **TDLib** 封装的 **Telegram Bot 框架**，目标是提供简单易用、可扩展的接口，帮助开发者快速构建 Bot 或自走人形。  
+如果你有问题可以在交流群中 [@CatMoeCircle_Group](https://t.me/CatMoeCircle_Group) 中询问
 
 ✨ 特性：
 - 🚀 基于 **TDLib**，支持原始调用功能齐全
@@ -53,7 +54,7 @@ pnpm install -P
 pnpm start
 ```
 
-技术栈
+## 技术栈
  - [TDLib](https://core.telegram.org/tdlib) - Telegram Database Library
  - [tdl](https://github.com/eilvelia/tdl) -  TDLib 的 JavaScript 包装器
  - [prebuilt-tdlib](https://github.com/eilvelia/tdl/blob/main/packages/prebuilt-tdlib/README.md) - 预构建的 TDLib 库
