@@ -33,7 +33,7 @@ export class ClientManager {
         use_file_database: false,
         system_language_code:
           Intl.DateTimeFormat().resolvedOptions().locale || "en",
-        application_version: "0.1",
+        application_version: process.env.APP_VERSION,
         device_model: system.model || os.type(),
         system_version: undefined,
       },
