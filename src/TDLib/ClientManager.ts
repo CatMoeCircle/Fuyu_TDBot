@@ -155,8 +155,8 @@ export class ClientManager {
         try {
           const hint = authorization_state.password_hint || "";
           const promptMessage = hint
-            ? `请输入密码（提示: ${hint}）`
-            : "请输入密码";
+            ? `请输入密码（提示: ${hint},密码模式，默认不显示输入正确的回车即可）`
+            : "请输入密码（密码模式，默认不显示输入正确的回车即可）";
 
           const passwordStr = await password({
             message: promptMessage,
@@ -174,6 +174,9 @@ export class ClientManager {
         authorization_state._ ===
         "authorizationStateWaitOtherDeviceConfirmation"
       ) {
+        logger.info(
+          "请使用已登录的其他设备确认扫码登录（二维码有效期为 30 秒）"
+        );
         const qrlink = authorization_state.link;
         qrcode.generate(qrlink, { small: true });
       }
