@@ -207,7 +207,6 @@ export default class getinfo extends Plugin {
 
   constructor(client: Client) {
     super(client);
-    // 命令处理器：当收到 /info 时触发
     this.cmdHandlers = {
       info: {
         description: "获取 用户/消息 详细内容",

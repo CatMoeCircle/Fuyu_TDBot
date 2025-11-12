@@ -1173,12 +1173,33 @@ export class PluginManager {
   private async handleCommand(message: updateNewMessage) {
     const text = message.message.content;
 
-    // 检查是否为文本消息
-    if (text._ !== "messageText") {
-      return;
+    let messageText: string | undefined;
+    switch (text._) {
+      case "messageText":
+        messageText = text.text.text;
+        break;
+      case "messagePhoto":
+        messageText = text.caption ? text.caption.text : undefined;
+        break;
+      case "messageVideo":
+        messageText = text.caption ? text.caption.text : undefined;
+        break;
+      case "messageDocument":
+        messageText = text.caption ? text.caption.text : undefined;
+        break;
+      case "messageAnimation":
+        messageText = text.caption ? text.caption.text : undefined;
+        break;
+      case "messageAudio":
+        messageText = text.caption ? text.caption.text : undefined;
+        break;
+      default:
+        return;
     }
 
-    const messageText = text.text.text;
+    if (!messageText || messageText.trim() === "") {
+      return;
+    }
 
     // 支持多种命令前缀 (例如: `/`, `!`, `！`, `.`)，可通过数据库配置 `cmd` 类型的 `PREFIXES` 覆盖
     let prefixes = ["/", "!", "！", ".", "#"];
