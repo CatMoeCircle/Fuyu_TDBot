@@ -17,6 +17,12 @@ export default class start extends Plugin {
       start: {
         description: "start 命令",
         handler: async (updateNewMessage, _args) => {
+          if (
+            updateNewMessage.message.content._ !== "messageText" ||
+            updateNewMessage.message.content.text.text?.trim() !== "/start"
+          )
+            return;
+
           try {
             // 尝试获取自定义start文本
             const { getConfig } = await import("@db/config.ts");
