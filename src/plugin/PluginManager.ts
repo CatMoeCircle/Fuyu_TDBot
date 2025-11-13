@@ -1308,33 +1308,39 @@ export class PluginManager {
       }
     }
 
-    // 查找外部插件处理该命令
+    const tasks: Promise<void>[] = [];
     for (const pluginInfo of this.plugins.values()) {
       const commandDef = pluginInfo.instance.cmdHandlers[commandName];
-      if (commandDef) {
-        try {
-          const validation = await this.validateCommandAccess(
-            commandName,
-            commandDef.scope || "all",
-            commandDef.permission || "all",
-            chatType,
-            userPermission,
-            userId
-          );
+      if (!commandDef) continue;
 
-          if (!validation.allowed) {
-            return;
-          }
+      try {
+        const validation = await this.validateCommandAccess(
+          commandName,
+          commandDef.scope || "all",
+          commandDef.permission || "all",
+          chatType,
+          userPermission,
+          userId
+        );
 
-          Promise.resolve(commandDef.handler(message, args)).catch((e: any) => {
-            logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
-          });
-          return;
-        } catch (e) {
-          logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
-          return;
+        if (!validation.allowed) {
+          continue;
         }
+
+        const p = Promise.resolve(commandDef.handler(message, args)).catch(
+          (e: any) => {
+            logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
+          }
+        );
+        tasks.push(p);
+      } catch (e) {
+        logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
       }
+    }
+
+    if (tasks.length > 0) {
+      // 并行执行
+      Promise.allSettled(tasks);
     }
   }
 }
