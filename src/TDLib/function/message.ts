@@ -114,7 +114,7 @@ export async function sendMessage(
 }
 
 /**
- * 将 2–10 条消息组合成相册发送（仅支持音频、文档、照片、视频）
+ * 将 2–10 条消息组合成相册发送（仅音频、文档、照片和视频消息可以组成相册。文档和音频文件只能与同类型的消息组成相册）
  * @param client - TDLib 客户端实例
  * @param chat_id - 对话 ID
  * @param params - 发送参数
