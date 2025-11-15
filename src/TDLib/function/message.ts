@@ -67,8 +67,7 @@ export async function sendMessage(
       ...(topic_id && { topic_id }),
       ...(reply_to_message_id && {
         reply_to: {
-          _: "inputMessageReplyToExternalMessage",
-          chat_id,
+          _: "inputMessageReplyToMessage",
           message_id: reply_to_message_id,
         },
       }),
