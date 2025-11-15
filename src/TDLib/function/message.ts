@@ -560,7 +560,7 @@ export async function editMessageMedia(
  * @param media - 媒体内容
  * @returns TDLib 输入消息内容
  */
-async function buildInputMessageContent(
+export async function buildInputMessageContent(
   client: Client,
   text: string | undefined,
   media: photoMessage | videoMessage | audioMessage | fileMessage
