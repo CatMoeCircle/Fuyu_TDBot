@@ -570,11 +570,11 @@ export async function chatoruserMdown(
         if (
           supergroup &&
           supergroup.usernames &&
-          supergroup.usernames.editable_username &&
-          supergroup.usernames.editable_username.length > 0
+          supergroup.usernames.active_usernames &&
+          supergroup.usernames.active_usernames.length > 0
         ) {
           // 如果超级群组有用户名，使用 tg://resolve?domain=username
-          const username = supergroup.usernames.editable_username[0];
+          const username = supergroup.usernames.active_usernames[0];
 
           if (name) {
             return `[${sender_id.chat_id}](tg://resolve?domain=${username})`;
