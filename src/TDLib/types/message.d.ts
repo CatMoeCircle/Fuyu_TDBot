@@ -4,6 +4,8 @@ import type {
   editMessageCaption as Td$editMessageCaptionOriginal,
   editMessageText as Td$editMessageTextOriginal,
   editMessageMedia as Td$editMessageMediaOriginal,
+  sendBusinessMessage as Td$sendBusinessMessageOriginal,
+  sendBusinessMessageAlbum as Td$sendBusinessMessageAlbumOriginal,
   MessageTopic$Input,
 } from "tdlib-types";
 
@@ -24,6 +26,18 @@ export type Td$editMessageText = Omit<Td$editMessageTextOriginal, "_"> & {
 };
 export type Td$editMessageMedia = Omit<Td$editMessageMediaOriginal, "_"> & {
   _?: Td$editMessageMediaOriginal["_"];
+};
+export type Td$sendBusinessMessage = Omit<
+  Td$sendBusinessMessageOriginal,
+  "_"
+> & {
+  _?: Td$sendBusinessMessageOriginal["_"];
+};
+export type Td$sendBusinessMessageAlbum = Omit<
+  Td$sendBusinessMessageAlbumOriginal,
+  "_"
+> & {
+  _?: Td$sendBusinessMessageAlbumOriginal["_"];
 };
 
 export type inputFile = {
@@ -126,9 +140,27 @@ export type sendMessage = {
   readonly timeout?: number;
 };
 
+export type sendBusinessMessage = {
+  /** 消息文本 */
+  readonly text?: string;
+  /** 业务连接 ID */
+  readonly business_connection_id?: string;
+  /** 发送媒体消息如果你需要发送相册组请使用 `sendMessageAlbum` 而不是 `sendMessage` */
+  readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
+  /** 回复消息 ID */
+  readonly reply_to_message_id?: number;
+  /** 是否禁用链接预览 */
+  readonly link_preview?: boolean;
+  /** TDLib 原始调用方法 */
+  readonly invoke?: Td$sendBusinessMessage;
+  /** 发送消息的超时时间，单位秒 默认 */
+  readonly timeout?: number;
+};
+
 export type sendMessageAlbum = {
   /** 对话 ID */
   readonly chat_id?: number;
+
   /** 媒体内容 */
   readonly medias?: mediasArray;
   /** 回复消息 ID */
@@ -141,6 +173,25 @@ export type sendMessageAlbum = {
   readonly timeout?: number;
   /** TDLib 原始调用方法 */
   readonly invoke?: Td$sendMessageAlbum;
+};
+
+export type sendBusinessMessageAlbum = {
+  /** 对话 ID */
+  readonly chat_id?: number;
+  /** 业务连接 ID */
+  readonly business_connection_id?: string;
+  /** 媒体内容 */
+  readonly medias?: mediasArray;
+  /** 回复消息 ID */
+  readonly caption?: string;
+  /** 回复消息 ID */
+  readonly reply_to_message_id?: number;
+  /** 聊天中的消息主题 */
+  readonly topic_id?: MessageTopic$Input;
+  /** 发送消息的超时时间，单位秒 默认1800秒 (半小时) */
+  readonly timeout?: number;
+  /** TDLib 原始调用方法 */
+  readonly invoke?: Td$sendBusinessMessageAlbum;
 };
 
 export type editMessageCaption = {

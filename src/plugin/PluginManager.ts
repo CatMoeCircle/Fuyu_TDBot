@@ -3,54 +3,27 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { CronJob } from "cron";
+import type {
+  RunDef,
+  CommandDef,
+  PluginInfo,
+  ImportedModule,
+  PluginAPI,
+} from "./BasePlugin.ts";
 import { Plugin as BasePlugin } from "./BasePlugin.ts";
 import { getConfig } from "@db/config.ts";
 import type { Client } from "tdl";
 import type { Update, updateNewMessage } from "tdlib-types";
 
-/**
- * 插件信息接口
- */
-export interface PluginInfo {
-  /** 插件名称 */
-  name: string;
-  /** 插件版本 */
-  version: string;
-  /** 插件描述 */
-  description: string;
-  /** 插件实例 */
-  instance: BasePlugin;
-}
-
 export class PluginManager {
   private plugins: Map<string, PluginInfo> = new Map();
-  private pluginRunTimers: Map<string, Map<string, any>> = new Map();
+  private pluginRunTimers: Map<string, Map<string, CronJob | NodeJS.Timeout>> =
+    new Map();
   private pluginDir: string;
-  private internalPluginDir: string;
   private client: Client | null = null;
-  // 系统插件命令注册表
-  private internalCmdHandlers: Map<
-    string,
-    {
-      handler: (
-        update: updateNewMessage,
-        args?: string[]
-      ) => Promise<void> | void;
-      description?: string;
-      source?: string;
-      scope?: string;
-      permission?: string;
-    }
-  > = new Map();
-  // 系统插件元数据列表
-  private internalPlugins: Array<{ name: string; path: string }> = [];
 
-  constructor(
-    pluginDir = path.resolve("./plugins"),
-    internalPluginDir = path.resolve("./src/cmd")
-  ) {
+  constructor(pluginDir = path.resolve("./plugins")) {
     this.pluginDir = pluginDir;
-    this.internalPluginDir = internalPluginDir;
   }
 
   /**
@@ -62,7 +35,7 @@ export class PluginManager {
     if (!instance.runHandlers || Object.keys(instance.runHandlers).length === 0)
       return;
 
-    const timers = new Map<string, any>();
+    const timers = new Map<string, CronJob | NodeJS.Timeout>();
     for (const [runName, def] of Object.entries(instance.runHandlers)) {
       try {
         if (def.immediate) {
@@ -135,11 +108,11 @@ export class PluginManager {
     if (!timers) return;
     for (const t of timers.values()) {
       try {
-        // node-cron 任务有 stop 方法
-        if (t && typeof t.stop === "function") {
+        // 使用 instanceof 做类型保护：CronJob 有 stop 方法
+        if (t instanceof CronJob) {
           t.stop();
         } else {
-          clearInterval(t as unknown as number);
+          clearInterval(t as NodeJS.Timeout);
         }
       } catch (e) {
         logger.debug(`[插件管理] 清理定时器出错:`, e);
@@ -152,7 +125,10 @@ export class PluginManager {
   async triggerPluginRun(pluginName: string, runName: string) {
     const pi = this.plugins.get(pluginName);
     if (!pi) throw new Error(`plugin ${pluginName} not found`);
-    const def = (pi.instance as any).runHandlers?.[runName];
+    const runHandlers = pi.instance.runHandlers as
+      | Record<string, RunDef>
+      | undefined;
+    const def = runHandlers?.[runName];
     if (!def)
       throw new Error(`run ${runName} not found on plugin ${pluginName}`);
     try {
@@ -175,20 +151,12 @@ export class PluginManager {
   async loadPlugins(client: Client) {
     this.client = client;
 
-    // 扫描外部插件目录
-    await this.scanPluginDir(this.pluginDir, client, "插件目录", false);
-
-    // 扫描系统插件目录(例如项目内的 `src/cmd`),系统插件单独注册为命令
-    await this.scanPluginDir(
-      this.internalPluginDir,
-      client,
-      "系统插件目录",
-      true
-    );
+    // 扫描外部插件目录（统一加载插件）
+    await this.scanPluginDir(this.pluginDir, client, "插件目录");
     logger.info("-------------------------------");
 
     // 统计插件信息
-    let totalCommands = this.internalCmdHandlers.size;
+    let totalCommands = 0;
     let totalUpdateHandlers = 0;
     let totalRunHandlers = 0;
 
@@ -225,12 +193,7 @@ export class PluginManager {
   /**
    * 扫描并加载指定目录下的插件（只扫描顶层条目）
    */
-  private async scanPluginDir(
-    dir: string,
-    client: Client,
-    label = "插件目录",
-    isInternal = false
-  ) {
+  private async scanPluginDir(dir: string, client: Client, label = "插件目录") {
     if (!fs.existsSync(dir)) {
       logger.warn(`[插件管理] 未找到${label}: ${dir}`);
       return;
@@ -252,222 +215,18 @@ export class PluginManager {
         if (dirent.isDirectory()) {
           modulePath = this.findIndexFile(itemPath);
         } else if (dirent.isFile()) {
-          if (/\.(ts)$/i.test(item)) {
+          if (/\.(ts|js)$/i.test(item)) {
             modulePath = itemPath;
           }
         }
 
         if (modulePath) {
-          if (isInternal) {
-            await this.loadInternalPlugin(modulePath, client);
-          } else {
-            await this.loadPlugin(modulePath, client);
-          }
+          await this.loadPlugin(modulePath, client);
         }
       } catch (e) {
         logger.error(`[插件管理] 加载插件 ${item} 出错:`, e);
       }
     }
-  }
-
-  /**
-   * 加载系统插件（将其作为命令注册，而不是实例化 BasePlugin）
-   */
-  private async loadInternalPlugin(modulePath: string, client: Client) {
-    try {
-      const moduleURL = pathToFileURL(modulePath).href;
-      let mod: any;
-      try {
-        mod = await import(moduleURL);
-      } catch (impErr) {
-        logger.error(`[插件管理] 导入系统插件模块 ${modulePath} 失败:`, impErr);
-        return;
-      }
-
-      // 根据文件名推断命令名（例如 help.ts -> help）
-      const baseName = path.basename(modulePath).replace(/\.(ts)$/i, "");
-
-      // 支持导出命名工厂 create<CapitalizedName>Handler 或 createHandler，或者导出 commands 对象
-      const capital = baseName[0]
-        ? baseName[0].toUpperCase() + baseName.slice(1)
-        : baseName;
-      let handlerFactory: any = undefined;
-      if (typeof mod.createHandler === "function")
-        handlerFactory = mod.createHandler;
-      else if (typeof mod[`create${capital}Handler`] === "function")
-        handlerFactory = mod[`create${capital}Handler`];
-
-      // 如果默认导出是类并且继承自 BasePlugin，则实例化并注册其 cmdHandlers
-      if (typeof mod.default === "function") {
-        const DefaultExport = mod.default;
-        if (
-          DefaultExport.prototype &&
-          DefaultExport.prototype instanceof BasePlugin
-        ) {
-          try {
-            let inst: any = null;
-            try {
-              inst = new DefaultExport(client);
-            } catch (instErr) {
-              logger.error(
-                `[插件管理] 实例化内部插件类 ${modulePath} 失败:`,
-                instErr
-              );
-              return;
-            }
-
-            const cmds = inst.cmdHandlers || {};
-            // Ensure commands have a default showInHelp = true when not provided
-            for (const [name, def] of Object.entries(cmds)) {
-              try {
-                const _d = def as any;
-                if (
-                  _d &&
-                  typeof _d === "object" &&
-                  !Object.prototype.hasOwnProperty.call(_d, "showInHelp")
-                ) {
-                  _d.showInHelp = true;
-                }
-              } catch {
-                // ignore
-              }
-
-              const d = def as any;
-              if (typeof d.handler === "function") {
-                const safeHandler = async (update: any, args?: any) => {
-                  try {
-                    const r = d.handler(update, args);
-                    if (r && typeof r.catch === "function")
-                      r.catch((err: any) =>
-                        logger.error(
-                          `[插件管理] 内部命令 ${name} 执行出错:`,
-                          err
-                        )
-                      );
-                  } catch (err) {
-                    logger.error(`[插件管理] 内部命令 ${name} 执行出错:`, err);
-                  }
-                };
-
-                this.internalCmdHandlers.set(name, {
-                  handler: safeHandler,
-                  description: d.description || "",
-                  source: modulePath,
-                  scope: d.scope,
-                  permission: d.permission,
-                });
-                this.internalPlugins.push({ name, path: modulePath });
-              }
-            }
-            return;
-          } catch (e) {
-            logger.error(`[插件管理] 实例化内部插件类 ${modulePath} 失败:`, e);
-          }
-        } else {
-          handlerFactory = mod.default;
-        }
-      }
-
-      if (handlerFactory) {
-        try {
-          const fn = handlerFactory(
-            client,
-            () => this.getPlugins(),
-            () => this.getInternalCommands()
-          );
-          if (typeof fn === "function") {
-            const safeFn = async (update: any, args?: any) => {
-              try {
-                const r = fn(update, args);
-                if (r && typeof r.catch === "function")
-                  r.catch((err: any) =>
-                    logger.error(
-                      `[插件管理] 内部命令 ${baseName} 执行出错:`,
-                      err
-                    )
-                  );
-              } catch (err) {
-                logger.error(`[插件管理] 内部命令 ${baseName} 执行出错:`, err);
-              }
-            };
-
-            this.internalCmdHandlers.set(baseName, {
-              handler: safeFn,
-              description: (mod.description as string) || "",
-              source: modulePath,
-              scope: mod.scope,
-              permission: mod.permission,
-            });
-            this.internalPlugins.push({ name: baseName, path: modulePath });
-            return;
-          }
-        } catch (hfErr) {
-          logger.error(
-            `[插件管理] 内部插件工厂 ${modulePath} 执行失败:`,
-            hfErr
-          );
-          return;
-        }
-      }
-
-      // 支持导出 commands 对象： { name: { handler, description } }
-      if (mod.commands && typeof mod.commands === "object") {
-        for (const [name, def] of Object.entries(mod.commands)) {
-          const d = def as any;
-          if (typeof d.handler === "function") {
-            const safeHandler = async (update: any, args?: any) => {
-              try {
-                const r = d.handler(update, args);
-                if (r && typeof r.catch === "function")
-                  r.catch((err: any) =>
-                    logger.error(`[插件管理] 内部命令 ${name} 执行出错:`, err)
-                  );
-              } catch (err) {
-                logger.error(`[插件管理] 内部命令 ${name} 执行出错:`, err);
-              }
-            };
-
-            this.internalCmdHandlers.set(name, {
-              handler: safeHandler,
-              description: d.description || "",
-              source: modulePath,
-              scope: d.scope,
-              permission: d.permission,
-            });
-            this.internalPlugins.push({ name, path: modulePath });
-            logger.debug(`[插件管理] 系统插件命令 ${name} 来自 ${modulePath}`);
-          }
-        }
-        return;
-      }
-
-      logger.debug(
-        `[插件管理] 内部模块 ${modulePath} 未找到可注册的命令工厂或 commands 导出`
-      );
-    } catch (e) {
-      logger.error(`[插件管理] 加载系统插件 ${modulePath} 出错:`, e);
-    }
-  }
-
-  /**
-   * 获取内置命令信息列表
-   */
-  getInternalCommands(): Array<{
-    name: string;
-    description?: string;
-    source?: string;
-    scope?: string;
-    permission?: string;
-  }> {
-    return Array.from(this.internalCmdHandlers.entries()).map(
-      ([name, info]) => ({
-        name,
-        description: info.description,
-        source: info.source,
-        scope: info.scope,
-        permission: info.permission,
-      })
-    );
   }
 
   /**
@@ -493,15 +252,16 @@ export class PluginManager {
    * @param modulePath 插件文件路径
    * @param client TDLib 客户端实例
    */
-  private async loadPlugin(modulePath: string, client: any) {
+  private async loadPlugin(modulePath: string, client: Client) {
     const moduleURL = pathToFileURL(modulePath).href;
-    let module: any;
+    let module: ImportedModule;
     try {
-      module = await import(moduleURL);
-    } catch (impErr: any) {
+      module = (await import(moduleURL)) as ImportedModule;
+    } catch (impErr: unknown) {
       // 检查是否是缺少包的错误
-      if (impErr.code === "ERR_MODULE_NOT_FOUND") {
-        const errorMessage = impErr.message || "";
+      const imp = impErr as { code?: string; message?: string };
+      if (imp.code === "ERR_MODULE_NOT_FOUND") {
+        const errorMessage = imp.message || "";
         // 尝试从错误信息中提取包名
         const packageMatch = errorMessage.match(
           /Cannot find package '([^']+)'/
@@ -537,11 +297,15 @@ export class PluginManager {
       return;
     }
 
-    // 创建插件实例，传递客户端（安全包装）
-    let pluginInstance: any;
+    // 创建插件实例，传递客户端（安全包装）并注入插件可调用的 manager API
+    let pluginInstance: BasePlugin;
     try {
-      pluginInstance = new PluginClass(client);
-    } catch (instErr) {
+      const ctor = PluginClass as unknown as new (
+        client: Client,
+        api?: PluginAPI
+      ) => BasePlugin;
+      pluginInstance = new ctor(client, this.createPluginApi(modulePath));
+    } catch (instErr: unknown) {
       logger.error(`[插件管理] 实例化插件 ${modulePath} 失败:`, instErr);
       return;
     }
@@ -554,10 +318,11 @@ export class PluginManager {
 
     // 为插件的命令定义设置默认 showInHelp = true（如果未显式设置）
     try {
-      const cmdsAny = pluginInstance.cmdHandlers || {};
+      const cmdsAny: Record<string, CommandDef> =
+        pluginInstance.cmdHandlers || {};
       for (const [, def] of Object.entries(cmdsAny)) {
         try {
-          const d = def as any;
+          const d = def as CommandDef;
           if (
             d &&
             typeof d === "object" &&
@@ -639,11 +404,23 @@ export class PluginManager {
     }
 
     // 注册插件
+    const commands = Object.entries(pluginInstance.cmdHandlers || {}).map(
+      ([name, def]) => ({
+        name,
+        description: def?.description || "",
+        // 直接透传 scope/permission/showInHelp 字段以供展示与过滤
+        scope: (def as unknown as CommandDef)?.scope,
+        permission: (def as unknown as CommandDef)?.permission,
+        showInHelp: (def as unknown as CommandDef)?.showInHelp,
+      })
+    );
+
     const pluginInfo: PluginInfo = {
       name: pluginInstance.name,
       version: pluginInstance.version,
       description: pluginInstance.description,
       instance: pluginInstance,
+      commands,
     };
 
     this.plugins.set(pluginInstance.name, pluginInfo);
@@ -727,6 +504,29 @@ export class PluginManager {
   }
 
   /**
+   * 为插件创建一个可调用的辅助 API 对象，插件构造时会收到此对象作为第二参数（可选）
+   */
+  private createPluginApi(pluginIdentity: string): PluginAPI {
+    const safeRunPluginTask = async (name: string, runName: string) => {
+      return this.runPluginTask(name, runName);
+    };
+
+    return {
+      pluginIdentity,
+      runPluginTask: safeRunPluginTask,
+      triggerPluginRun: this.triggerPluginRun.bind(this),
+      getPlugins: this.getPlugins.bind(this),
+      getPlugin: this.getPlugin.bind(this),
+      hasPlugin: this.hasPlugin.bind(this),
+      unloadPlugin: this.unloadPlugin.bind(this),
+      reloadPlugin: this.reloadPlugin.bind(this),
+      enablePlugin: this.enablePlugin.bind(this),
+      disablePlugin: this.disablePlugin.bind(this),
+      deletePlugin: this.deletePlugin.bind(this),
+    };
+  }
+
+  /**
    * 重载插件
    * @param pluginName 插件名称
    * @param client TDLib 客户端实例
@@ -753,7 +553,7 @@ export class PluginManager {
 
     try {
       // 重新扫描并加载插件
-      await this.scanPluginDir(this.pluginDir, client, "插件目录", false);
+      await this.scanPluginDir(this.pluginDir, client, "插件目录");
 
       // 检查是否重新加载成功
       if (this.plugins.has(pluginName)) {
@@ -1089,9 +889,7 @@ export class PluginManager {
         return { allowed: true };
       }
 
-      // 用户账户下：除了 admin 和 owner，其他都无权执行
       if (permission === "all") {
-        // 对于权限为 "all" 的命令，在用户账户下只有 admin、owner 和自己可以执行
         if (userPermission !== "owner" && userPermission !== "admin") {
           if (userId === null || myId === null || userId !== myId) {
             return { allowed: false, reason: "此命令需要管理员权限或以上" };
@@ -1109,10 +907,8 @@ export class PluginManager {
         }
         return { allowed: true };
       }
-      // 默认返回允许（当 permission 不是 "all"、"owner"、"admin" 时）
       return { allowed: true };
     } else {
-      // Bot 账户：按原逻辑处理，Bot 自身相当于 owner
       // 验证权限
       if (permission !== "all") {
         if (permission === "owner" && userPermission !== "owner") {
@@ -1160,7 +956,6 @@ export class PluginManager {
       }
     }
 
-    // 使用 allSettled：所有插件并行执行，互不阻塞
     if (promises.length > 0) {
       Promise.allSettled(promises);
     }
@@ -1282,32 +1077,6 @@ export class PluginManager {
       ? await this.getUserPermission(userId)
       : "user";
 
-    // 优先查找自带命令
-    const internal = this.internalCmdHandlers.get(commandName);
-    if (internal) {
-      try {
-        // 验证权限和场景（使用命令定义的 scope 和 permission，或配置覆盖）
-        const validation = await this.validateCommandAccess(
-          commandName,
-          internal.scope || "all",
-          internal.permission || "all",
-          chatType,
-          userPermission,
-          userId
-        );
-
-        if (!validation.allowed) {
-          return;
-        }
-
-        await internal.handler(message, args);
-        return;
-      } catch (e) {
-        logger.error(`[插件管理] 执行内部命令 ${commandName} 出错:`, e);
-        return;
-      }
-    }
-
     const tasks: Promise<void>[] = [];
     for (const pluginInfo of this.plugins.values()) {
       const commandDef = pluginInfo.instance.cmdHandlers[commandName];
@@ -1328,7 +1097,7 @@ export class PluginManager {
         }
 
         const p = Promise.resolve(commandDef.handler(message, args)).catch(
-          (e: any) => {
+          (e: unknown) => {
             logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
           }
         );
@@ -1339,7 +1108,6 @@ export class PluginManager {
     }
 
     if (tasks.length > 0) {
-      // 并行执行
       Promise.allSettled(tasks);
     }
   }

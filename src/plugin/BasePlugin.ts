@@ -1,5 +1,6 @@
 import type { Client } from "tdl";
 import type { updateNewMessage, Update } from "tdlib-types";
+import type { Plugin as BasePlugin } from "@plugin/BasePlugin.ts";
 
 /**
  * 命令使用场景
@@ -194,4 +195,115 @@ export abstract class Plugin {
    * 框架可根据 `intervalMs` 或 `cron` 自动调度执行。
    */
   runHandlers: Record<string, RunDef> = {};
+}
+
+/**
+ * 插件信息接口
+ */
+export interface PluginInfo {
+  /** 插件名称 */
+  name: string;
+  /** 插件版本 */
+  version: string;
+  /** 插件描述 */
+  description: string;
+  /** 插件实例 */
+  instance: BasePlugin;
+  /**
+   * 插件命令汇总（用于帮助、展示等）。
+   * 每一项为命令名和简要描述，以及可选的场景和权限信息。
+   */
+  commands?: Array<{
+    /** 命令名称（不带前缀） */
+    name: string;
+    /** 命令简短描述 */
+    description?: string;
+    /** 命令可用场景 */
+    scope?: CommandScope;
+    /** 命令权限要求 */
+    permission?: CommandPermission;
+    /** 是否在帮助列表中显示 */
+    showInHelp?: boolean;
+  }>;
+}
+
+export type ImportedModule = Record<string, unknown> & { default?: unknown };
+
+/**
+ * 插件可使用的管理 API。
+ *
+ * 当插件由框架实例化时，第二个构造参数若为 `PluginAPI`，
+ * 插件可以通过该对象调用框架提供的辅助方法来查询或操作插件状态。
+ */
+export interface PluginAPI {
+  /** 插件标识（通常为模块路径或文件名），用于调试或标识来源 */
+  pluginIdentity: string;
+
+  /**
+   * 触发并运行指定插件的某个 `run` 任务（异步）。
+   * @param name 插件名称
+   * @param runName 要触发的 run 任务名
+   */
+  runPluginTask: (name: string, runName: string) => Promise<void>;
+
+  /**
+   * 与 `runPluginTask` 等价：触发指定插件的单次 run 执行（异步）。
+   * @param name 插件名称
+   * @param runName 任务名
+   */
+  triggerPluginRun: (name: string, runName: string) => Promise<void>;
+
+  /**
+   * 返回当前已加载的插件信息数组。
+   * - 每项为 `PluginInfo`，包含 `name`, `version`, `description`, `instance`。
+   */
+  getPlugins: () => PluginInfo[];
+
+  /**
+   * 根据插件名返回对应的 `PluginInfo`，若未加载则返回 `undefined`。
+   * @param name 插件名称
+   */
+  getPlugin: (name: string) => PluginInfo | undefined;
+
+  /**
+   * 检查指定插件是否已加载。
+   * @param name 插件名称
+   */
+  hasPlugin: (name: string) => boolean;
+
+  /**
+   * 卸载指定插件。
+   * @param name 插件名称
+   * @returns 是否成功卸载
+   */
+  unloadPlugin: (name: string) => Promise<boolean>;
+
+  /**
+   * 重载或加载指定插件（需要提供 `Client` 实例）。
+   * @param name 插件名称
+   * @param client TDLib 客户端实例
+   * @returns 是否加载/重载成功
+   */
+  reloadPlugin: (name: string, client: Client) => Promise<boolean>;
+
+  /**
+   * 启用指定插件。
+   * @param name 插件名称
+   * @returns 是否成功启用
+   */
+  enablePlugin: (name: string) => Promise<boolean>;
+
+  /**
+   * 禁用指定插件。
+   * @param name 插件名称
+   * @returns 是否成功禁用
+   */
+  disablePlugin: (name: string) => Promise<boolean>;
+
+  /**
+   * 删除指定插件（不可逆）。
+   * @param name 插件名称
+   * @returns 是否成功删除
+   */
+  deletePlugin: (name: string) => Promise<boolean>;
 }

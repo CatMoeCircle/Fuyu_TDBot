@@ -153,3 +153,4 @@ dist
 
 /plugins
 pnpm-lock.yaml
+bun.lock
