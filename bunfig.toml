@@ -1,9 +1,0 @@
-[imports]
-"@log/*" = "./src/log/*"
-"@plugin/*" = "./src/plugin/*"
-"@TDLib/*" = "./src/TDLib/*"
-"@type/*" = "./src/types/*"
-"@function/*" = "./src/function/*"
-"@db/*" = "./src/Database/*"
-
-preload = ["./bun/raw-file-plugin.ts"]
