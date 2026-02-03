@@ -2,22 +2,16 @@ import type {
   AdminConfig,
   BotConfig,
   CmdConfig,
-  Config,
   MeConfig,
   PluginsConfig,
 } from "../types/Database.d.ts";
-import { getDatabase } from "./index.ts";
-import type { Collection } from "mongodb";
-
-let collection: Collection<Config> | null = null;
-
-async function getCollection() {
-  if (!collection) {
-    const db = await getDatabase();
-    collection = db.collection<Config>("config");
-  }
-  return collection;
-}
+import {
+  deleteLocalConfig,
+  getLocalConfig,
+  removeLocalConfigFields as removeLocalConfigFieldsLocal,
+  updateLocalConfig,
+  upsertLocalConfig,
+} from "./localConfig.ts";
 
 type ConfigMap = {
   admin: AdminConfig;
@@ -35,9 +29,7 @@ type ConfigMap = {
 export async function getConfig<T extends keyof ConfigMap>(
   type: T
 ): Promise<ConfigMap[T] | null> {
-  const coll = await getCollection();
-  const config = await coll.findOne({ type });
-  return config as ConfigMap[T] | null;
+  return getLocalConfig(type);
 }
 
 /**
@@ -50,8 +42,7 @@ export async function updateConfig<T extends keyof ConfigMap>(
   type: T,
   data: Partial<Omit<ConfigMap[T], "type">>
 ) {
-  const coll = await getCollection();
-  return coll.updateOne({ type }, { $set: data });
+  return updateLocalConfig(type, data);
 }
 
 /**
@@ -64,8 +55,7 @@ export async function upsertConfig<T extends keyof ConfigMap>(
   type: T,
   data: Partial<Omit<ConfigMap[T], "type">>
 ) {
-  const coll = await getCollection();
-  return coll.updateOne({ type }, { $set: data }, { upsert: true });
+  return upsertLocalConfig(type, data);
 }
 
 /**
@@ -74,8 +64,7 @@ export async function upsertConfig<T extends keyof ConfigMap>(
  * @returns 返回 MongoDB 删除操作的结果
  */
 export async function deleteConfig(type: keyof ConfigMap) {
-  const coll = await getCollection();
-  return coll.deleteOne({ type });
+  return deleteLocalConfig(type);
 }
 
 /**
@@ -92,6 +81,5 @@ export async function removeConfigFields<T extends keyof ConfigMap>(
   fields.forEach((field) => {
     unsetObject[field] = 1;
   });
-  const coll = await getCollection();
-  return coll.updateOne({ type }, { $unset: unsetObject });
+  return removeLocalConfigFieldsLocal(type, fields);
 }
