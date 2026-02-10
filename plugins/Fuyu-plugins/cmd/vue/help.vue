@@ -2,7 +2,7 @@
     <div class="flex flex-col text-black"
         style="background: linear-gradient(132.5deg, rgba(255, 255, 255, 1) 0%, rgba(206, 237, 219, 1) 100%);">
         <div class="flex absolute h-60 w-full">
-            <img :src="imgSrc ? imgSrc : 'https://img.js.design/assets/img/68f3403b3f22157da640de5d.png'"
+            <img :src="imgSrc ? imgSrc : 'https://img.js.design/assets/img/68f3403b3f22157da640de5d.png#64579f44beb316f0170ddb751b8110d8'"
                 class="h-full w-full" style="object-fit: cover;">
             <div class="absolute flex h-full w-full"
                 style="background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.09) 70%);">
