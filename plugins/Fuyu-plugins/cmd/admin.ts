@@ -2,13 +2,15 @@ import type { Client } from "tdl";
 import logger from "@log/index.ts";
 import { deleteMessage, sendMessage } from "@TDLib/function/message.ts";
 import { getConfig, updateConfig, removeConfigFields } from "@db/config.ts";
-import vueadmins from "./vue/admins.vue?raw";
 import { getUser } from "@TDLib/function/get.ts";
 import { downloadFile, isGroup } from "@TDLib/function/index.ts";
 import { convertPhotoToBase64, generateImage } from "@function/genImg.ts";
 import { deleteImgCache } from "@db/delete.ts";
 import { updateImgCache } from "@db/update.ts";
 import type { updateNewMessage } from "tdlib-types";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs/promises";
 
 export default async function setAdmin(
   update: updateNewMessage,
@@ -223,7 +225,7 @@ export default async function setAdmin(
           height: "auto",
           quality: 1.5,
         },
-        vueadmins,
+        await fs.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "./vue/admins.vue"), "utf-8"),
         admins
       );
 

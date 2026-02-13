@@ -2,7 +2,6 @@ import type { Client } from "tdl";
 import type { updateNewMessage } from "tdlib-types";
 import logger from "@log/index.ts";
 import { generateImage } from "@function/genImg.ts";
-import template from "./vue/help.vue?raw";
 import { sendMessage, deleteMessage } from "@TDLib/function/message.ts";
 import { updateImgCache } from "@db/update.ts";
 import { deleteImgCache } from "@db/delete.ts";
@@ -11,6 +10,10 @@ import type {
   CommandPermission,
   PluginInfo,
 } from "@plugin/BasePlugin.ts";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs/promises";
+
 
 export const description = "帮助命令 列出所有可用命令";
 export const scope: CommandScope = "all";
@@ -60,10 +63,10 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
       const chatType: CommandScope = (await isPrivate(client, chatId))
         ? "private"
         : (await isChannel(client, chatId))
-        ? "channel"
-        : (await isGroup(client, chatId))
-        ? "group"
-        : "private";
+          ? "channel"
+          : (await isGroup(client, chatId))
+            ? "group"
+            : "private";
 
       // 读取管理员配置以判定用户权限
       const adminConfig = await getConfig("admin");
@@ -75,8 +78,8 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           ? "owner"
           : Array.isArray(adminConfig?.admin) &&
             adminConfig.admin.includes(userId)
-          ? "admin"
-          : "user";
+            ? "admin"
+            : "user";
 
       // 读取命令覆盖配置（用于 scope/permission 的覆盖）
       const configData = await getConfig("config").catch(() => null);
@@ -229,7 +232,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           quality: 1.6,
           imgname: `help.png`,
         },
-        template as unknown as string,
+        await fs.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "./vue/help.vue"), "utf-8"),
         {
           title: "帮助",
           description: "Fuyu_TDBot - 帮助命令列表",

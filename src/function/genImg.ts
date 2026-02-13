@@ -4,8 +4,8 @@ import sharp from "sharp";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import NotoSansSC from "../fonts/NotoSansSC-Regular.ttf?file";
 import { getImgCache } from "@db/query.ts";
+import { fileURLToPath } from "url";
 
 // 直接使用路径引用字体文件
 
@@ -37,7 +37,9 @@ export function hashString(str: string, algorithm: string = "sha256"): string {
   return crypto.createHash(algorithm).update(str, "utf8").digest("hex");
 }
 
-/** * 生成图片
+
+/** 
+ * 生成图片
  * @param options 图片生成选项
  * @param vuetemplateStr Vue 模板字符串
  * @param props Vue 模板的属性
@@ -65,13 +67,14 @@ export async function generateImage(
   hash?: string;
   file_id?: string;
 }> {
+
   const opt = defineSatoriConfig({
     width: (options.width as number) || 800,
     height: (options.height as number) || 600,
     fonts: [
       {
         name: "Noto Sans SC",
-        data: await fs.promises.readFile(NotoSansSC),
+        data: await fs.promises.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "../fonts/NotoSansSC-Regular.ttf")),
         weight: 400,
         style: "normal",
       },
@@ -154,8 +157,12 @@ export async function generateImage(
   };
 }
 
+/** 
+ * 将图片文件转换为 Base64 编码字符串。
+ * @param photoPath 图片文件的路径
+ * @returns 包含 Base64 编码数据的 Data URL 字符串，如果读取失败则返回 undefined
+ */
 export async function convertPhotoToBase64(photoPath: string | undefined) {
-  // 将本地图片路径转换为 Base64 Data URL
   if (photoPath) {
     try {
       const buffer = await fs.promises.readFile(photoPath);
@@ -164,10 +171,10 @@ export async function convertPhotoToBase64(photoPath: string | undefined) {
         ext === "png"
           ? "image/png"
           : ext === "jpg" || ext === "jpeg"
-          ? "image/jpeg"
-          : ext === "webp"
-          ? "image/webp"
-          : "application/octet-stream";
+            ? "image/jpeg"
+            : ext === "webp"
+              ? "image/webp"
+              : "application/octet-stream";
       return `data:${mime};base64,${buffer.toString("base64")}`;
     } catch {
       return undefined;
