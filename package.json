@@ -33,7 +33,7 @@
   "dependencies": {
     "@inquirer/prompts": "^8.0.2",
     "@resvg/resvg-js": "^2.6.2",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "cron": "^4.3.5",
     "dotenv": "^16.6.1",
     "lowdb": "^7.0.1",
