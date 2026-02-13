@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon",
+    "dev": "node --watch --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\" src/index.ts --debug",
     "lint": "eslint .",
     "start": "node --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\" src/index.ts",
     "pm2:start": "pm2 start src/index.ts --name fuyu-tdbot --interpreter node --node-args=\"--import \\\"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\\\"\"",
@@ -26,7 +26,6 @@
     "@typescript-eslint/parser": "^8.42.0",
     "eslint": "^9.0.0",
     "jiti": "^2.5.1",
-    "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0"
   },
