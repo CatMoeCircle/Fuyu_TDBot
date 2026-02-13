@@ -1,2 +1,7 @@
 packages:
-  - "plugins/*"
+  - plugins/*
+
+onlyBuiltDependencies:
+  - sharp
+  - tdl
+"

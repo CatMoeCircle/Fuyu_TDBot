@@ -51,12 +51,6 @@
   "optionalDependencies": {
     "pm2": "^6.0.13"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp",
-      "tdl"
-    ]
-  },
   "workspaces": [
     "plugins/*"
   ]
