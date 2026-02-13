@@ -3,6 +3,46 @@ import type { ProxyType$Input } from "tdlib-types";
 import type { Client } from "tdl";
 
 /**
+ * 解析代理URL并返回代理类型配置
+ *
+ * @param proxyUrl - 代理的URL，格式为 protocol://[username:password@]host:port
+ * @param http_only - 仅用于HTTP代理，是否只通过HTTP使用代理（默认false）
+ * @returns 返回ProxyType配置对象
+ * @throws 如果代理协议不受支持
+ */
+export function parseProxyType(proxyUrl: string, http_only = false): ProxyType$Input {
+  const url = new URL(proxyUrl);
+  const [username, password] = url.username
+    ? [url.username, url.password]
+    : [undefined, undefined];
+  let proxyType: ProxyType$Input;
+
+  if (url.protocol === "socks5:") {
+    proxyType = {
+      _: "proxyTypeSocks5",
+      username: username,
+      password: password,
+    };
+  } else if (url.protocol === "http:") {
+    proxyType = {
+      _: "proxyTypeHttp",
+      username: username,
+      password: password,
+      http_only: http_only,
+    };
+  } else if (url.protocol === "mtproto:") {
+    proxyType = {
+      _: "proxyTypeMtproto",
+      secret: username,
+    };
+  } else {
+    throw new Error("Unsupported proxy protocol");
+  }
+
+  return proxyType;
+}
+
+/**
  * 获取当前配置的所有代理列表
  *
  * @param client - TDLib 客户端实例
@@ -51,32 +91,7 @@ export async function addProxy(
 ) {
   try {
     const url = new URL(proxyUrl);
-    const [username, password] = url.username
-      ? [url.username, url.password]
-      : [undefined, undefined];
-    let proxyType: ProxyType$Input;
-
-    if (url.protocol === "socks5:") {
-      proxyType = {
-        _: "proxyTypeSocks5",
-        username: username,
-        password: password,
-      };
-    } else if (url.protocol === "http:") {
-      proxyType = {
-        _: "proxyTypeHttp",
-        username: username,
-        password: password,
-        http_only: http_only,
-      };
-    } else if (url.protocol === "mtproto:") {
-      proxyType = {
-        _: "proxyTypeMtproto",
-        secret: username,
-      };
-    } else {
-      throw new Error("Unsupported proxy protocol");
-    }
+    const proxyType = parseProxyType(proxyUrl, http_only);
 
     const proxy = {
       server: url.hostname,
@@ -87,10 +102,14 @@ export async function addProxy(
 
     const result = await client.invoke({
       _: "addProxy",
-      server: proxy.server,
-      port: proxy.port,
+      proxy: {
+        _: "proxy",
+        server: proxy.server,
+        port: proxy.port,
+        type: proxy.type,
+      },
       enable: proxy.enable,
-      type: proxy.type,
+
     });
 
     return result;
@@ -144,10 +163,13 @@ export async function editProxy(
     const result = await client.invoke({
       _: "editProxy",
       proxy_id: proxy_id,
-      server: server,
-      port: port,
+      proxy: {
+        _: "proxy",
+        server: server,
+        port: port,
+        type: proxyType,
+      },
       enable: enable,
-      type: proxyType,
     });
     return result;
   } catch (error) {
@@ -198,14 +220,23 @@ export async function disableProxy(client: Client) {
  * 测量到代理服务器的往返延迟时间
  *
  * @param client - TDLib 客户端实例
- * @param proxyId - 要测试的代理ID
- * @returns 返回包含测试结果
+ * @param server - 代理服务器地址
+ * @param port - 代理服务器端口
+ * @param type - 代理类型配置
+ * @returns 返回包含测试结果的对象，失败返回null
  */
-export async function pingProxy(client: Client, proxy_id: number) {
+export async function pingProxy(client: Client, server: string,
+  port: number,
+  type: ProxyType$Input,) {
   try {
     const result = await client.invoke({
       _: "pingProxy",
-      proxy_id: proxy_id,
+      proxy: {
+        _: "proxy",
+        server: server,
+        port: port,
+        type: type,
+      },
     });
     return result;
   } catch (error) {
@@ -236,9 +267,12 @@ export async function testProxy(
   try {
     const result = await client.invoke({
       _: "testProxy",
-      server: server,
-      port: port,
-      type: type,
+      proxy: {
+        _: "proxy",
+        server: server,
+        port: port,
+        type: type,
+      },
       dc_id: dcId,
       timeout: timeout,
     });
@@ -257,10 +291,23 @@ export async function testProxy(
  * @returns 返回包含代理链接的对象，失败返回null
  */
 export async function getProxyLink(client: Client, proxy_id: number) {
+
   try {
+    const proxy = await client.invoke({
+      _: "getProxies",
+    });
+    const targetProxy = proxy.proxies.find((p: any) => p.id === proxy_id);
     const result = await client.invoke({
-      _: "getProxyLink",
-      proxy_id: proxy_id,
+      _: "getInternalLink",
+      type: {
+        _: "internalLinkTypeProxy",
+        proxy: {
+          _: "proxy",
+          server: targetProxy?.proxy.server,
+          port: targetProxy?.proxy.port,
+          type: targetProxy?.proxy.type,
+        }
+      }
     });
     return result;
   } catch (error) {
