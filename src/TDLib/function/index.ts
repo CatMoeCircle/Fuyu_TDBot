@@ -74,14 +74,13 @@ export async function restrictUser(
       },
     });
   } catch (error: unknown) {
-    logger.error(
+    logger.debug(
       "限制用户权限时出错:",
       `param ${chat_id}, ${member_id}`,
       error
     );
     throw new Error(
-      `在 "${chat_id}" 限制用户 "${member_id}"失败: ${
-        error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 限制用户 "${member_id}"失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -120,10 +119,9 @@ export async function setUserAsMember(
       },
     });
   } catch (error) {
-    logger.error("setUserAsMember", `param ${chat_id}, ${member_id}`, error);
+    logger.debug("setUserAsMember", `param ${chat_id}, ${member_id}`, error);
     throw new Error(
-      `在 "${chat_id}" 设置用户 "${member_id}" 为无限制成员失败: ${
-        error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 设置用户 "${member_id}" 为无限制成员失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -178,14 +176,13 @@ export async function setUserRestricted(
       },
     });
   } catch (error: unknown) {
-    logger.error(
+    logger.debug(
       "设置用户权限时出错:",
       `param ${chat_id}, ${member_id}`,
       error
     );
     throw new Error(
-      `在 "${chat_id}" 设置用户 "${member_id}" 权限失败: ${
-        error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 设置用户 "${member_id}" 权限失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -247,10 +244,9 @@ export async function downloadFile(
     });
     return file;
   } catch (error) {
-    logger.error("下载文件时出错:", `param ${file_id}, ${type}`, error);
+    logger.debug("下载文件时出错:", `param ${file_id}, ${type}`, error);
     throw new Error(
-      `下载 ${file_id} 失败: ${
-        error instanceof Error ? error.message : String(error)
+      `下载 ${file_id} 失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -270,10 +266,9 @@ export async function deleteFile(client: Client, file_id: number) {
     });
     return;
   } catch (error) {
-    logger.error("删除文件时出错:", `param ${file_id}`, error);
+    logger.debug("删除文件时出错:", `param ${file_id}`, error);
     throw new Error(
-      `删除 ${file_id} 失败: ${
-        error instanceof Error ? error.message : String(error)
+      `删除 ${file_id} 失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -317,14 +312,13 @@ export async function banUser(
     });
     return;
   } catch (error) {
-    logger.error(
+    logger.debug(
       "setChatMemberStatus",
       `param ${chat_id}, ${member_id}, ${banned_until_date}`,
       error
     );
     throw new Error(
-      `在 "${chat_id}" 封禁用户 "${member_id}" 失败: ${
-        error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 封禁用户 "${member_id}" 失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -363,14 +357,13 @@ export async function answerCallbackQuery(
     });
     return;
   } catch (error) {
-    logger.error(
+    logger.debug(
       "回复回调查询时出错:",
       `param ${query_id}, ${options.text}, ${options.show_alert}, ${options.url}, ${options.cache_time}`,
       error
     );
     throw new Error(
-      `回复回调查询 "${query_id}" 失败: ${
-        error instanceof Error ? error.message : String(error)
+      `回复回调查询 "${query_id}" 失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -416,8 +409,7 @@ export async function isMeAdmin(
   } catch (error: unknown) {
     logger.error("isMeAdmin error", `chat_id ${chat_id}`, error);
     throw new Error(
-      `检查自己在 ${chat_id} 是否为管理员失败: ${
-        error instanceof Error ? error.message : String(error)
+      `检查自己在 ${chat_id} 是否为管理员失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -477,10 +469,9 @@ export async function isUserAdmin(
     // 既不是创建者也不是管理员
     return false;
   } catch (error) {
-    logger.error("Error checking admin status:", error);
+    logger.debug("Error checking admin status:", error);
     throw new Error(
-      `检查 ${chat_id} 中用户 ${member_id} 的管理员状态失败: ${
-        error instanceof Error ? error.message : String(error)
+      `检查 ${chat_id} 中用户 ${member_id} 的管理员状态失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -555,9 +546,8 @@ export async function chatoruserMdown(
     }
     const user = await getUser(client, sender_id.user_id);
 
-    return `[${user.first_name || ""} ${user.last_name || ""}](tg://user?id=${
-      sender_id.user_id
-    })`;
+    return `[${user.first_name || ""} ${user.last_name || ""}](tg://user?id=${sender_id.user_id
+      })`;
   } else if (sender_id._ === "messageSenderChat") {
     try {
       // 获取聊天信息
@@ -650,9 +640,9 @@ export async function parseTextEntities(
       parse_mode:
         parse_mode === "MarkdownV2"
           ? {
-              _: "textParseModeMarkdown",
-              version: 2,
-            }
+            _: "textParseModeMarkdown",
+            version: 2,
+          }
           : { _: "textParseModeHTML" },
     });
     return result;
@@ -742,7 +732,6 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
   switch (node.type) {
     case "root": {
-      // 逻辑回归简化:直接处理所有子节点
       if (!hasChildren(node)) return "";
       const results: string[] = [];
 
@@ -753,19 +742,15 @@ function toTelegram(node: Node | RootContent, original = ""): string {
         if (content) {
           results.push(content);
 
-          // 在块级元素之间添加适当的换行
-          // 如果当前元素不是最后一个,检查是否需要添加额外的换行
           if (i < node.children.length - 1) {
             const nextChild = node.children[i + 1];
 
-            // 如果当前元素是段落/标题,且下一个不是块引用的一部分,添加空行
             if (
               (child.type === "paragraph" || child.type === "heading") &&
               nextChild.type !== "blockquote"
             ) {
               results.push("");
             }
-            // 如果当前元素是块引用,下一个元素之前添加空行
             else if (child.type === "blockquote") {
               results.push("");
             }
@@ -777,17 +762,14 @@ function toTelegram(node: Node | RootContent, original = ""): string {
     }
 
     case "blockquote": {
-      // 所有核心逻辑都集中在这里
+
       if (!hasChildren(node)) return "";
 
-      // 1. 检查原始文本中是否有未使用 > 标记的行
       if (hasPosition(node) && original) {
         const start = node.position.start.offset;
         const end = node.position.end.offset;
         const blockText = original.substring(start, end);
         const lines = blockText.split("\n");
-
-        // 检查是否有中断的行(不以 > 开头的非空行)
         let hasInterruption = false;
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
@@ -797,42 +779,41 @@ function toTelegram(node: Node | RootContent, original = ""): string {
           }
         }
 
-        // 如果检测到中断,手动处理每一行
+
         if (hasInterruption) {
           const parts: string[] = [];
           let currentQuote: string[] = [];
-          let hasCollapseMarker = false; // 标记是否有可折叠引用结尾
+          let hasCollapseMarker = false;
 
           for (const line of lines) {
             const trimmed = line.trimStart();
             if (trimmed.startsWith(">")) {
-              // 移除 > 前缀和紧跟的一个空格(如果有)
+
               let content = trimmed.slice(1);
               if (content.startsWith(" ")) {
                 content = content.slice(1);
               }
 
-              // 检查这一行是否是可折叠引用的结尾标记(以 || 结尾)
+
               if (content.trimEnd().endsWith("||")) {
                 hasCollapseMarker = true;
               }
 
               currentQuote.push(content);
             } else if (line.trim()) {
-              // 非引用行,结束当前引用块
+
               if (currentQuote.length > 0) {
-                // 对引用块内的内容进行 Markdown 格式化
+
                 const quoteText = currentQuote.join("\n");
 
                 // 如果有可折叠标记,需要特殊处理
                 if (hasCollapseMarker) {
-                  // 移除最后的 || 标记进行格式化
+
                   const textWithoutMarker = quoteText.replace(/\|\|[\s]*$/, "");
                   const formattedQuote = toTelegram(
                     remark().use(remarkGfm).parse(textWithoutMarker) as Root,
                     textWithoutMarker
                   );
-                  // 为格式化后的每一行添加 > 前缀,并在最后添加 || 标记
                   parts.push(
                     formattedQuote
                       .split("\n")
@@ -844,7 +825,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
                     remark().use(remarkGfm).parse(quoteText) as Root,
                     quoteText
                   );
-                  // 为格式化后的每一行添加 > 前缀
+
                   parts.push(
                     formattedQuote
                       .split("\n")
@@ -855,33 +836,32 @@ function toTelegram(node: Node | RootContent, original = ""): string {
                 currentQuote = [];
                 hasCollapseMarker = false;
               }
-              // 非引用行也需要格式化
+
               const formattedLine = toTelegram(
                 remark().use(remarkGfm).parse(line) as Root,
                 line
               );
               parts.push(formattedLine);
             } else if (currentQuote.length > 0) {
-              // 空行在引用块内保留
+
               currentQuote.push("");
             } else {
-              // 引用块外的空行
+
               parts.push("");
             }
           }
 
-          // 处理最后一个引用块
+
           if (currentQuote.length > 0) {
             const quoteText = currentQuote.join("\n");
 
             if (hasCollapseMarker) {
-              // 移除最后的 || 标记进行格式化
+
               const textWithoutMarker = quoteText.replace(/\|\|[\s]*$/, "");
               const formattedQuote = toTelegram(
                 remark().use(remarkGfm).parse(textWithoutMarker) as Root,
                 textWithoutMarker
               );
-              // 为格式化后的每一行添加 > 前缀,并在最后添加 || 标记
               parts.push(
                 formattedQuote
                   .split("\n")
@@ -906,8 +886,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
         }
       }
 
-      // 2. 正常处理:获取块引用内部所有段落的纯文本内容
-      // 注意:这里不合并段落,保持每个段落作为独立的行
+
       const paragraphs: string[] = [];
       for (const child of node.children) {
         if (child.type === "paragraph" && hasChildren(child)) {
@@ -920,24 +899,21 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
       const innerContent = paragraphs.join("\n");
 
-      // 3. 定义分隔符（一个独立的 '**' 行）和结尾标记
+
       const separator = "\n**\n";
       const hasSeparator = innerContent.includes(separator);
       const hasEndMark = innerContent.trim().endsWith("||");
 
-      // 4. 判断是否为可折叠块
       if (hasSeparator && hasEndMark) {
-        // 是可折叠块，进行解析和重构
+
         const contentWithoutMark = innerContent.trim().slice(0, -2);
 
-        // 使用分隔符来切分可见与隐藏部分
         const parts = contentWithoutMark.split(separator);
 
         const visiblePart = parts[0];
-        // 即使有多个分隔符，也只处理第一个，其余归为隐藏部分
         const hiddenPart = parts.slice(1).join(separator);
 
-        // 5. 为各部分重新构建 Telegram 格式
+
         const visibleLines = visiblePart
           .split("\n")
           .map((line) => ">" + line)
@@ -949,7 +925,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
         return `${visibleLines}\n>**\n${hiddenLines}||`;
       } else {
-        // 是一个普通的块引用，直接添加 '>' 前缀
+
         return innerContent
           .split("\n")
           .map((line) => ">" + line)
@@ -966,42 +942,42 @@ function toTelegram(node: Node | RootContent, original = ""): string {
       return `*${node.children.map((c) => toTelegram(c, original)).join("")}*`;
 
     case "strong": {
-      // 检查原始文本中使用的是 ** 还是 __
+
       if (!hasChildren(node)) return "";
       const innerText = node.children
         .map((c) => toTelegram(c, original))
         .join("");
 
-      // 通过检查节点在原始文本中的位置来判断使用的标记
+
       if (hasPosition(node) && original) {
         const start = node.position.start.offset;
         const end = node.position.end.offset;
         const nodeText = original.substring(start, end);
 
-        // 如果原始文本使用的是 __,转换为 Telegram 的下划线格式
+
         if (nodeText.startsWith("__") && nodeText.endsWith("__")) {
           return `__${innerText}__`;
         }
       }
 
-      // 默认情况(使用 ** 或无法判断)转换为粗体
+
       return `*${innerText}*`;
     }
 
     case "emphasis": {
-      // 检查原始文本中使用的是 * 还是 _
+
       if (!hasChildren(node)) return "";
       const innerText = node.children
         .map((c) => toTelegram(c, original))
         .join("");
 
-      // 通过检查节点在原始文本中的位置来判断使用的标记
+
       if (hasPosition(node) && original) {
         const start = node.position.start.offset;
         const end = node.position.end.offset;
         const nodeText = original.substring(start, end);
 
-        // 如果原始文本使用的是单个 _,保持为下划线(但这在 Telegram 中是斜体)
+
         if (
           nodeText.startsWith("_") &&
           nodeText.endsWith("_") &&
@@ -1011,7 +987,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
         }
       }
 
-      // 默认情况(使用 * 或无法判断)转换为斜体
+
       return `_${innerText}_`;
     }
 
@@ -1058,14 +1034,14 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
     case "text": {
       if (!hasValue(node)) return "";
-      // 转义文本,但保留特殊的 || 用法
+
       let escaped = escapeMarkdownV2(node.value);
-      // 恢复 spoiler 标记: ||...||
+
       escaped = escaped.replace(
         /\\\|\\\|(.*?)\\\|\\\|/g,
         (_, inner) => `||${inner}||`
       );
-      // 恢复末尾的可折叠引用标记: ||
+
       escaped = escaped.replace(/\\\|\\\|$/g, "||");
       return escaped;
     }

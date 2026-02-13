@@ -54,12 +54,27 @@ pnpm install -P
 pnpm start
 ```
 
-## 技术栈
- - [TDLib](https://core.telegram.org/tdlib) - Telegram Database Library
- - [tdl](https://github.com/eilvelia/tdl) -  TDLib 的 JavaScript 包装器
- - [prebuilt-tdlib](https://github.com/eilvelia/tdl/blob/main/packages/prebuilt-tdlib/README.md) - 预构建的 TDLib 库
- - [systeminformation](https://www.npmjs.com/package/systeminformation) - 获取系统信息
- - [mongodb](https://github.com/mongodb/node-mongodb-native) - MongoDB driver
- - [axios](https://axios-http.com/) - 网络请求工具
- - [cron](https://github.com/kelektiv/node-cron#readme) - 定时任务
+### 开发
 
+```bash
+pnpm i
+
+pnpm dev
+```
+
+## 主要的第三方依赖
+
+| 依赖 | 用途 | 协议 | 链接 |
+| --- | --- | --- | --- |
+| TDLib | Telegram 客户端 | BSL-1.0 | https://github.com/tdlib/td |
+| tdl + prebuilt-tdlib | TDLib 的 JavaScript 封装与预构建 TDLib | MIT | https://github.com/eilvelia/tdl |
+| mongodb | 使用 MongoDB 作为数据库| Apache-2.0 | https://github.com/mongodb/node-mongodb-native |
+| lowdb | json数据库 | MIT | https://github.com/typicode/lowdb |
+| axios | 用于网络请求 | MIT | https://github.com/axios/axios |
+| cron (node-cron) | 定时任务调度 | MIT | https://github.com/kelektiv/node-cron#readme |
+| qrcode-terminal | 二维码登录 | Apache-2.0 | https://github.com/gtanner/qrcode-terminal |
+| x-satori | 用于图片生成 | MIT | https://github.com/Zhengqbbb/x-satori |
+| @resvg/resvg-js | 用于图片生成 | MPL-2.0 | https://github.com/thx/resvg-js |
+| vue | 使用vue作为生图模板 | MIT | https://github.com/vuejs/core |
+| sharp | 图片处理 | Apache-2.0 | https://github.com/lovell/sharp |
+| @inquirer/prompts | 用于命令行引导 | MIT | https://github.com/SBoudrias/Inquirer.js |
