@@ -2,6 +2,7 @@ import type { Db } from "mongodb";
 import { MongoClient } from "mongodb";
 import logger from "@log/index.ts";
 import { randomBytes } from "crypto";
+import { getConfig, upsertConfig } from "./config.ts";
 
 const DEFAULT_DB_NAME = "fuyubot";
 
@@ -79,87 +80,37 @@ async function ensureDatabase(): Promise<Db> {
       const dbInstance = mongoClient.db(dbName);
 
       try {
-        const config = dbInstance.collection("config");
-        await config.createIndex(
-          { type: 1 },
-          { unique: true, name: "type_unique_idx" }
-        );
-
-        // 检查是否已有管理员配置
-        const existingAdminConfig = await config.findOne({ type: "admin" });
-        let tempPassword: string;
+        const localAdmin = await getConfig("admin");
+        let tempPassword = "";
         let shouldShowPassword = false;
 
-        if (existingAdminConfig) {
-          // 如果配置存在，检查是否已设置超级管理员
-          if (
-            !existingAdminConfig.super_admin &&
-            existingAdminConfig.temp_super_admin_password
-          ) {
-            // 超级管理员未设置但有临时密码，使用现有密码
-            tempPassword = existingAdminConfig.temp_super_admin_password;
+        if (localAdmin) {
+          if (!localAdmin.super_admin && localAdmin.temp_super_admin_password) {
+            tempPassword = localAdmin.temp_super_admin_password;
             shouldShowPassword = true;
-          } else if (
-            !existingAdminConfig.super_admin &&
-            !existingAdminConfig.temp_super_admin_password
-          ) {
-            // 超级管理员未设置且无临时密码，生成新密码
+          } else if (!localAdmin.super_admin && !localAdmin.temp_super_admin_password) {
             tempPassword = randomBytes(8).toString("hex");
             shouldShowPassword = true;
-            // 更新现有配置添加临时密码
-            await config.updateOne(
-              { type: "admin" },
-              { $set: { temp_super_admin_password: tempPassword } }
-            );
-          } else {
-            // 超级管理员已设置，不需要显示密码
-            tempPassword = "";
+            await upsertConfig("admin", {
+              ...localAdmin,
+              temp_super_admin_password: tempPassword,
+            });
           }
         } else {
-          // 配置不存在，生成新密码并创建配置
           tempPassword = randomBytes(8).toString("hex");
           shouldShowPassword = true;
+          await upsertConfig("admin", {
+            super_admin: null,
+            admin: [],
+            temp_super_admin_password: tempPassword,
+          });
         }
 
         if (shouldShowPassword) {
           logger.warn(`初次使用请使用 /admin ${tempPassword} 来设置超级管理员`);
         }
-
-        await Promise.all([
-          config.updateOne(
-            { type: "admin" },
-            {
-              $setOnInsert: {
-                super_admin: null,
-                admin: [],
-                temp_super_admin_password: tempPassword,
-              },
-            },
-            { upsert: true }
-          ),
-          config.updateOne(
-            { type: "plugins" },
-            { $setOnInsert: { disabled: [] } },
-            { upsert: true }
-          ),
-          config.updateOne(
-            { type: "cmd" },
-            {
-              $setOnInsert: {
-                PREFIXES: ["/", "!", "！", ".", "#"],
-              },
-            },
-            { upsert: true }
-          ),
-          config.updateOne(
-            { type: "bot" },
-            { $setOnInsert: { account_type: true } },
-            { upsert: true }
-          ),
-        ]);
       } catch (err) {
-        logger.error("为 config 创建索引或初始化时出错", err);
-        throw err;
+        logger.error("读取或写入本地 config 时出错", err);
       }
 
       database = dbInstance;
