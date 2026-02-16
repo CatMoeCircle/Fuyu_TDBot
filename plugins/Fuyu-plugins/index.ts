@@ -28,21 +28,25 @@ export default class FuyuPlugins extends Plugin {
         },
       },
       admin: {
-        description: "设置bot管理员(仅限主人)",
+        description: "设置bot管理员(仅限bot主人)",
+        permission: "owner",
         handler: async (updateNewMessage, args) => {
           const { default: setAdmin } = await import("./cmd/admin.ts");
           return setAdmin(updateNewMessage, args || [], this.client);
         },
       },
       plugin: {
-        description: "插件管理命令(仅限私聊&管理)",
+        description: "插件管理命令(仅限bot管理)",
+        permission: "admin",
         handler: async (updateNewMessage, args) => {
           const { default: plugin } = await import("./cmd/plugin.ts");
           return plugin(updateNewMessage, args || [], this.client, api);
         },
       },
       config: {
-        description: "配置管理命令(仅限私聊&管理)",
+        description: "配置管理命令(仅限私聊&bot管理)",
+        scope: "private",
+        permission: "admin",
         handler: async (updateNewMessage, args) => {
           const { default: config } = await import("./cmd/config.ts");
           return config(updateNewMessage, args || [], this.client);
@@ -56,7 +60,9 @@ export default class FuyuPlugins extends Plugin {
         },
       },
       log: {
-        description: "获取日志文件(仅限私聊&管理)",
+        description: "获取日志文件(仅限私聊&bot主人)",
+        scope: "private",
+        permission: "owner",
         handler: async (updateNewMessage, args) => {
           const { default: getlog } = await import("./cmd/getlog.ts");
           return getlog(updateNewMessage, args || [], this.client);
