@@ -1,8 +1,7 @@
 import type { Db } from "mongodb";
 import { MongoClient } from "mongodb";
 import logger from "@log/index.ts";
-import { randomBytes } from "crypto";
-import { getConfig, upsertConfig } from "./config.ts";
+
 
 const DEFAULT_DB_NAME = "fuyubot";
 
@@ -79,39 +78,6 @@ async function ensureDatabase(): Promise<Db> {
       cachedDbName = dbName;
       const dbInstance = mongoClient.db(dbName);
 
-      try {
-        const localAdmin = await getConfig("admin");
-        let tempPassword = "";
-        let shouldShowPassword = false;
-
-        if (localAdmin) {
-          if (!localAdmin.super_admin && localAdmin.temp_super_admin_password) {
-            tempPassword = localAdmin.temp_super_admin_password;
-            shouldShowPassword = true;
-          } else if (!localAdmin.super_admin && !localAdmin.temp_super_admin_password) {
-            tempPassword = randomBytes(8).toString("hex");
-            shouldShowPassword = true;
-            await upsertConfig("admin", {
-              ...localAdmin,
-              temp_super_admin_password: tempPassword,
-            });
-          }
-        } else {
-          tempPassword = randomBytes(8).toString("hex");
-          shouldShowPassword = true;
-          await upsertConfig("admin", {
-            super_admin: null,
-            admin: [],
-            temp_super_admin_password: tempPassword,
-          });
-        }
-
-        if (shouldShowPassword) {
-          logger.warn(`初次使用请使用 /admin ${tempPassword} 来设置超级管理员`);
-        }
-      } catch (err) {
-        logger.error("读取或写入本地 config 时出错", err);
-      }
 
       database = dbInstance;
       return dbInstance;

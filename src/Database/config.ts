@@ -1,154 +1,171 @@
 import type {
-  AdminConfig,
-  BotConfig,
-  CmdConfig,
-  Config,
-  MeConfig,
-  PluginsConfig,
+  DatabaseSchema,
+  ConfigMap
 } from "../types/Database.d.ts";
+
 import { Low } from "lowdb";
 import { JSONFile } from "lowdb/node";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-
-// 获取当前文件目录
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-type DatabaseSchema = {
-  configs: Config[];
-};
+import { randomBytes } from "crypto";
+import logger from "@log/index.ts";
 
 
-const configFile = join(__dirname, "../../config/config.json");
+const configFile = fileURLToPath(
+  new URL("../../config/config.json", import.meta.url)
+);
+
 const adapter = new JSONFile<DatabaseSchema>(configFile);
-const db = new Low<DatabaseSchema>(adapter, { configs: [] });
 
-let initialized = false;
+const db = new Low<DatabaseSchema>(adapter, { configs: {} });
 
-async function initDatabase() {
-  if (!initialized) {
-    await db.read();
-    db.data ||= { configs: [] };
-    initialized = true;
-  }
+// 写入锁，确保顺序执行写操作
+let writeLock = Promise.resolve();
+
+function safeWrite() {
+  writeLock = writeLock.then(() => db.write());
+  return writeLock;
 }
 
-type ConfigMap = {
-  admin: AdminConfig;
-  plugins: PluginsConfig;
-  config: CmdConfig;
-  bot: BotConfig;
-  me: MeConfig;
-};
 
 /**
- * 获取指定类型的配置
- * @param type 配置类型
- * @returns 返回对应类型的配置对象，如果找不到则返回 null
+ * 初次使用时确保 admin 配置存在，并生成临时密码
+ */
+async function ensureAdminConfig() {
+  const admin = db.data.configs.admin;
+
+  if (admin?.super_admin) return;
+
+  if (admin?.temp_super_admin_password) {
+    logger.warn(
+      `使用 /admin ${admin.temp_super_admin_password} 来设置超级管理员`
+    );
+    return;
+  };
+
+  const tempPassword = randomBytes(8).toString("hex");
+
+  db.data.configs.admin = {
+    type: "admin",
+    super_admin: null,
+    admin: [],
+    temp_super_admin_password: tempPassword,
+  };
+
+  await safeWrite();
+
+  logger.warn(
+    `使用 /admin ${tempPassword} 来设置超级管理员`
+  );
+}
+
+
+const initPromise = (async () => {
+  try {
+    await db.read();
+    db.data ||= { configs: {} };
+    db.data.configs ||= {};
+    await ensureAdminConfig();
+  } catch (err) {
+    logger.error("Database init failed:", err);
+  }
+})();
+
+
+async function ready() {
+  await initPromise;
+}
+
+/**
+ * 获取配置
  */
 export async function getConfig<T extends keyof ConfigMap>(
   type: T
 ): Promise<ConfigMap[T] | null> {
-  await initDatabase();
-  const config = db.data.configs.find((c) => c.type === type);
-  return (config as ConfigMap[T]) || null;
+  await ready();
+  return (db.data.configs[type] as ConfigMap[T]) ?? null;
 }
 
 /**
- * 更新指定类型的配置
- * @param type 配置类型
- * @param data 要更新的数据
- * @returns 返回更新操作的结果
+ * 更新配置
  */
 export async function updateConfig<T extends keyof ConfigMap>(
   type: T,
   data: Partial<Omit<ConfigMap[T], "type">>
-) {
-  await initDatabase();
-  const index = db.data.configs.findIndex((c) => c.type === type);
+): Promise<ConfigMap[T] | null> {
+  await ready();
 
-  if (index === -1) {
-    return { acknowledged: true, modifiedCount: 0, matchedCount: 0 };
-  }
+  const current = db.data.configs[type];
+  if (!current) return null;
 
-  // 合并数据
-  db.data.configs[index] = {
-    ...db.data.configs[index],
+  const updated = {
+    ...current,
     ...data,
-  } as Config;
+  } as ConfigMap[T];
 
-  await db.write();
-  return { acknowledged: true, modifiedCount: 1, matchedCount: 1 };
+  db.data.configs[type] = updated;
+
+  await safeWrite();
+
+  return updated;
 }
 
+
 /**
- * 更新或创建指定类型的配置
- * @param type 配置类型
- * @param data 要更新或插入的数据
- * @returns 返回更新操作的结果
+ * 更新或插入配置
  */
 export async function upsertConfig<T extends keyof ConfigMap>(
   type: T,
   data: Partial<Omit<ConfigMap[T], "type">>
-) {
-  await initDatabase();
-  const index = db.data.configs.findIndex((c) => c.type === type);
+): Promise<ConfigMap[T]> {
+  await ready();
 
-  if (index === -1) {
-    db.data.configs.push({ type, ...data } as unknown as Config);
-    await db.write();
-    return { acknowledged: true, modifiedCount: 0, upsertedCount: 1, matchedCount: 0 };
-  } else {
-    db.data.configs[index] = {
-      ...db.data.configs[index],
-      ...data,
-    } as Config;
-    await db.write();
-    return { acknowledged: true, modifiedCount: 1, upsertedCount: 0, matchedCount: 1 };
-  }
+  const updated = {
+    type,
+    ...db.data.configs[type],
+    ...data,
+  } as ConfigMap[T];
+
+  db.data.configs[type] = updated;
+
+  await safeWrite();
+
+  return updated;
 }
 
 /**
- * 删除一个配置文档（不推荐常规使用）
- * @param type 要删除的配置类型
- * @returns 返回删除操作的结果
+ * 删除整个配置
  */
-export async function deleteConfig(type: keyof ConfigMap) {
-  await initDatabase();
-  const index = db.data.configs.findIndex((c) => c.type === type);
+export async function deleteConfig(
+  type: keyof ConfigMap
+): Promise<boolean> {
+  await ready();
 
-  if (index === -1) {
-    return { acknowledged: true, deletedCount: 0 };
-  }
+  if (!db.data.configs[type]) return false;
 
-  db.data.configs.splice(index, 1);
-  await db.write();
-  return { acknowledged: true, deletedCount: 1 };
+  delete db.data.configs[type];
+
+  await safeWrite();
+
+  return true;
 }
 
 /**
- * 删除指定配置类型中的特定字段
- * @param type 配置类型
- * @param fields 要删除的字段名数组
- * @returns 返回更新操作的结果
+ * 删除配置中的字段
  */
 export async function removeConfigFields<T extends keyof ConfigMap>(
   type: T,
-  fields: string[]
-) {
-  await initDatabase();
-  const index = db.data.configs.findIndex((c) => c.type === type);
+  fields: (keyof Omit<ConfigMap[T], "type">)[]
+): Promise<ConfigMap[T] | null> {
+  await ready();
 
-  if (index === -1) {
-    return { acknowledged: true, modifiedCount: 0, matchedCount: 0 };
+  const config = db.data.configs[type];
+  if (!config) return null;
+
+  for (const field of fields) {
+    delete (config as any)[field];
   }
 
-  const config = db.data.configs[index] as any;
-  fields.forEach((field) => {
-    delete config[field];
-  });
+  await safeWrite();
 
-  await db.write();
-  return { acknowledged: true, modifiedCount: 1, matchedCount: 1 };
+  return config as ConfigMap[T];
 }
