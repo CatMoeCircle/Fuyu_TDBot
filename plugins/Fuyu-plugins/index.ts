@@ -29,7 +29,6 @@ export default class FuyuPlugins extends Plugin {
       },
       admin: {
         description: "设置bot管理员(仅限bot主人)",
-        permission: "owner",
         handler: async (updateNewMessage, args) => {
           const { default: setAdmin } = await import("./cmd/admin.ts");
           return setAdmin(updateNewMessage, args || [], this.client);
