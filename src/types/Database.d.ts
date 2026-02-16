@@ -25,11 +25,11 @@ export type CmdConfig = {
     permissions?: {
       [commandName: string]: {
         scope?:
-          | "all"
-          | "private"
-          | "group"
-          | "channel"
-          | ("private" | "group" | "channel")[];
+        | "all"
+        | "private"
+        | "group"
+        | "channel"
+        | ("private" | "group" | "channel")[];
         permission?: "all" | "admin" | "owner";
       };
     };
@@ -52,3 +52,15 @@ export type Config =
   | CmdConfig
   | BotConfig
   | MeConfig;
+
+export type ConfigMap = {
+  admin: AdminConfig;
+  plugins: PluginsConfig;
+  config: CmdConfig;
+  bot: BotConfig;
+  me: MeConfig;
+};
+
+export type DatabaseSchema = {
+  configs: Partial<ConfigMap>;
+};
