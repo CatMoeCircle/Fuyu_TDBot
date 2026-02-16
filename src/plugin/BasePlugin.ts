@@ -55,6 +55,21 @@ export interface CommandDef {
    */
   handler: (message: updateNewMessage, args?: string[]) => Promise<void> | void;
   /**
+   * 可选：面向大模型/API的服务接口
+   * 返回纯数据，供大模型调用。
+   * 如果定义了此方法，ChatGPT 插件会将其注册为 Tool。
+   * @param args 大模型传入的参数对象
+   */
+  service?: (args: any) => Promise<any>;
+  /**
+   * 可选：参数定义，用于生成 Tool Schema
+   * 描述 service 方法需要的参数
+   */
+  params?: Record<
+    string,
+    { type: string; description: string; required?: boolean }
+  >;
+  /**
    * 可选：命令使用场景
    * - `"all"`: 所有场景都能使用
    * - `"private"`: 只能在私聊中使用
