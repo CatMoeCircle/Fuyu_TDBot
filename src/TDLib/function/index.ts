@@ -80,7 +80,7 @@ export async function restrictUser(
       error
     );
     throw new Error(
-      `在 "${chat_id}" 限制用户 "${member_id}"失败: ${error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 限制用户 "${JSON.stringify(member_id)}"失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -121,7 +121,7 @@ export async function setUserAsMember(
   } catch (error) {
     logger.debug("setUserAsMember", `param ${chat_id}, ${member_id}`, error);
     throw new Error(
-      `在 "${chat_id}" 设置用户 "${member_id}" 为无限制成员失败: ${error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 设置用户 "${JSON.stringify(member_id)}" 为无限制成员失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
@@ -182,7 +182,7 @@ export async function setUserRestricted(
       error
     );
     throw new Error(
-      `在 "${chat_id}" 设置用户 "${member_id}" 权限失败: ${error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 设置用户 "${JSON.stringify(member_id)}" 权限失败: ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
