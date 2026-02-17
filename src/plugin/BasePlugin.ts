@@ -60,7 +60,7 @@ export interface CommandDef {
    * 如果定义了此方法，ChatGPT 插件会将其注册为 Tool。
    * @param args 大模型传入的参数对象
    */
-  service?: (args: any) => Promise<any>;
+  service?: (args: Record<string, unknown>) => Promise<unknown>;
   /**
    * 可选：参数定义，用于生成 Tool Schema
    * 描述 service 方法需要的参数
