@@ -4,8 +4,6 @@ A modern **Telegram Bot framework** built with **Node.js + TypeScript + TDLib**,
 
 一个基于 **Node.js + TypeScript + TDLib** 的现代化 **Telegram Bot 框架**，支持插件化扩展，兼容 **Bot 账号** 与 **用户账号（自走人形）** 登录。
 
-注意：本项目使用了 Node.js 实验性功能 `--experimental-loader`，其行为可能随 Node 版本更改。
-
 <!-- ---
 
 📖 Read this in other languages:  

@@ -51,7 +51,6 @@ export class PluginManager {
           })();
         }
 
-        // 优先使用 cron 表达式
         if (def.cron) {
           try {
             const job = new CronJob(
@@ -108,7 +107,6 @@ export class PluginManager {
     if (!timers) return;
     for (const t of timers.values()) {
       try {
-        // 使用 instanceof 做类型保护：CronJob 有 stop 方法
         if (t instanceof CronJob) {
           t.stop();
         } else {
@@ -139,7 +137,7 @@ export class PluginManager {
     }
   }
 
-  /** 公共 API：触发插件任务（可被外部调用） */
+  /** 触发插件任务 */
   async runPluginTask(pluginName: string, runName: string) {
     return this.triggerPluginRun(pluginName, runName);
   }
@@ -180,6 +178,7 @@ export class PluginManager {
 
     // 设置更新处理器
     client.on("update", (update) => {
+      logger.debug(`[插件管理] 收到更新: ${update}`);
       this.handleUpdate(update).catch((error) => {
         logger.error("[插件管理] 处理更新时发生错误:", error);
       });
@@ -331,11 +330,9 @@ export class PluginManager {
             d.showInHelp = true;
           }
         } catch {
-          // ignore per-command errors
         }
       }
     } catch {
-      // ignore
     }
 
     // 检查必需属性
@@ -355,19 +352,19 @@ export class PluginManager {
     try {
       const botConfig = await getConfig("bot");
       if (botConfig && typeof botConfig.account_type === "boolean") {
-        const isBot = botConfig.account_type;
+        const isAccount = botConfig.account_type;
         const pluginType = pluginInstance.type;
 
-        if (isBot && pluginType === "bot") {
+        if (isAccount && pluginType === "bot") {
           logger.warn(
-            `[插件管理] 插件 ${pluginInstance.name} 类型为 bot，但当前为机器人账号，跳过加载`
+            `[插件管理] 插件 ${pluginInstance.name} 类型为 bot，但当前为用户账号，跳过加载`
           );
           return;
         }
 
-        if (!isBot && pluginType === "user") {
+        if (!isAccount && pluginType === "user") {
           logger.warn(
-            `[插件管理] 插件 ${pluginInstance.name} 类型为 user，但当前为用户账号，跳过加载`
+            `[插件管理] 插件 ${pluginInstance.name} 类型为 user，但当前为Bot账号，跳过加载`
           );
           return;
         }
@@ -563,8 +560,7 @@ export class PluginManager {
         return true;
       } else {
         logger.error(
-          `[插件管理] 插件 ${pluginName} ${
-            pluginInfo ? "重载" : "加载"
+          `[插件管理] 插件 ${pluginName} ${pluginInfo ? "重载" : "加载"
           }后未找到`
         );
         return false;
