@@ -20,11 +20,11 @@ export const scope: CommandScope = "all";
 export const permission: CommandPermission = "all";
 
 export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
-  return async (update: updateNewMessage, _args?: string[]) => {
+  return async (update: updateNewMessage, args?: string[]) => {
     try {
       // 尝试获取自定义帮助文本
       const dbModule = await import("@db/config.ts");
-      const getConfig = dbModule.getConfig as typeof dbModule.getConfig;
+      const getConfig = dbModule.getConfig
       const config = await getConfig("config");
 
       if (config?.cmd?.help) {
@@ -224,6 +224,40 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
         });
       }
 
+      // 如果请求文本模式（例如 `/help text`），直接发送文本帮助并跳过图片生成
+      if (args && args.length > 0 && args[0].toLowerCase() === "text") {
+        let helpText = `帮助 — Fuyu_TDBot - v${process.env.APP_VERSION || "0.0.0"}\n\n`;
+        for (const group of data) {
+          helpText += `${group.name}：${group.desc}\n`;
+          for (const cmd of group.commands) {
+            helpText += `${cmd.name} — ${cmd.desc}\n`;
+          }
+          helpText += "\n";
+        }
+
+        try {
+          await client.invoke({
+            _: "sendMessage",
+            chat_id: update.message.chat_id,
+            input_message_content: {
+              _: "inputMessageText",
+              text: {
+                _: "formattedText",
+                text: helpText,
+                entities: [],
+              },
+              link_preview_options: {
+                _: "linkPreviewOptions",
+                is_disabled: true,
+              },
+            },
+          });
+        } catch (e) {
+          logger.error("发送文本帮助失败", e);
+        }
+        return;
+      }
+
       const pngMetadata = await generateImage(
         {
           width: 800,
@@ -239,6 +273,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           data,
           imgSrc: null,
           version: `Fuyu_TDBot - v${process.env.APP_VERSION || "0.0.0"}`,
+          tips: "提示：发送 /help text 获取文本格式帮助信息",
         }
       );
 

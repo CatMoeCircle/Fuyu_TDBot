@@ -39,8 +39,9 @@
                     </div>
                 </div>
             </div>
-            <div class="flex items-center justify-end">
-                <h1 class="flex flex-col m-0 p-0 text-neutral-400 text-xs" v-html="version"></h1>
+            <div class="flex items-center justify-between w-full">
+                <p class="m-0 p-0 bg-gray-100 text-blue-500 text-xs px-3 py-1 rounded-md" v-html="tips"></p>
+                <h1 class="flex m-0 p-0 text-neutral-400 text-xs" v-html="version"></h1>
             </div>
         </div>
     </div>
@@ -49,6 +50,7 @@
 defineProps<{
     title: string;
     description: string;
+    tips: string;
     version: string;
     imgSrc: string;
     data: {

@@ -14,10 +14,10 @@ export default class FuyuPlugins extends Plugin {
     this.cmdHandlers = {
       help: {
         description: "显示帮助信息",
-        handler: async (update) => {
+        handler: async (update, args) => {
           const { createHelpHandler } = await import("./cmd/help.ts");
           const plugins = api.getPlugins();
-          return createHelpHandler(this.client, plugins)(update);
+          return createHelpHandler(this.client, plugins)(update, args);
         },
       },
       start: {
