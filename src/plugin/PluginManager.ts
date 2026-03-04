@@ -178,7 +178,7 @@ export class PluginManager {
 
     // 设置更新处理器
     client.on("update", (update) => {
-      logger.debug(`[插件管理] 收到更新: ${update}`);
+      logger.debug(`[插件管理] 收到更新: ${JSON.stringify(update)}`);
       this.handleUpdate(update).catch((error) => {
         logger.error("[插件管理] 处理更新时发生错误:", error);
       });
