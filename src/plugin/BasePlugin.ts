@@ -131,6 +131,51 @@ export interface RunDef {
 }
 
 /**
+ * 内联查询处理器定义。
+ *
+ * 插件可以通过在 `inlineHandlers` 中注册处理器来处理内联查询。
+ */
+export interface InlineDef {
+  /** 内联处理器的简短说明，会用于功能列表展示 */
+  description: string;
+  /**
+ * 可选：内联的使用场景
+ * - `"all"`: 所有场景都能使用
+ * - `"private"`: 只能在私聊中使用
+ * - `"group"`: 只能在群组中使用
+ * - `"channel"`: 只能在频道中使用
+ * 可组合使用
+ * - 示例`["private", "channel"]`: 只能在私聊和频道中使用
+ * - 示例`["group", "channel"]`: 只能在群组和频道中使用
+ * @default "all"
+ * @example
+ * scope: "private" // 只能私聊
+ * scope: ["private", "group"] // 私聊和群组都可以
+ */
+  scope?: CommandScope;
+  /**
+ * 可选：内联使用权限要求
+ * - `owner`: 只有超级管理员能使用
+ * - `admin`: 管理员和超级管理员都能使用
+ * - `all`: 所有人都能使用
+ * @default "all"
+ */
+  permission?: CommandPermission;
+  /**
+   * 匹配函数：判断该处理器是否应处理此查询
+   * @param query 用户输入的查询文本
+   * @returns 是否匹配此处理器
+   */
+  matcher: (query: string) => boolean;
+  /**
+   * 内联查询处理器。
+   * @param inlineQuery 收到的内联查询
+   * @param client TDLib 客户端实例
+   */
+  handler: (inlineQuery: any, client: Client) => Promise<void> | void;
+}
+
+/**
  * 类型映射：根据 `Update['_']` 字段，将具体的字符串字面量映射为对应的 `Update` 子类型。
  *
  * 这个映射用于实现 `updateHandlers` 的类型安全，使得当你使用特定更新类型的键时，
@@ -210,6 +255,12 @@ export abstract class Plugin {
    * 框架可根据 `intervalMs` 或 `cron` 自动调度执行。
    */
   runHandlers: Record<string, RunDef> = {};
+
+  /**
+   * 内联查询处理器集合：key 为功能名称，value 为 `InlineDef`。
+   * 框架在收到内联查询时会遍历所有处理器并调用匹配的 handler。
+   */
+  inlineHandlers: Record<string, InlineDef> = {};
 }
 
 /**

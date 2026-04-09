@@ -13,7 +13,7 @@ import type {
 import { Plugin as BasePlugin } from "./BasePlugin.ts";
 import { getConfig } from "@db/config.ts";
 import type { Client } from "tdl";
-import type { Update, updateNewMessage } from "tdlib-types";
+import type { Update, updateNewMessage, updateNewInlineQuery, InputInlineQueryResult$Input } from "tdlib-types";
 
 export class PluginManager {
   private plugins: Map<string, PluginInfo> = new Map();
@@ -157,6 +157,7 @@ export class PluginManager {
     let totalCommands = 0;
     let totalUpdateHandlers = 0;
     let totalRunHandlers = 0;
+    let totalInlineHandlers = 0;
 
     for (const pluginInfo of this.plugins.values()) {
       totalCommands += Object.keys(
@@ -168,12 +169,16 @@ export class PluginManager {
       totalRunHandlers += Object.keys(
         pluginInfo.instance.runHandlers || {}
       ).length;
+      totalInlineHandlers += Object.keys(
+        pluginInfo.instance.inlineHandlers || {}
+      ).length;
     }
 
     logger.info(`[插件管理] 已加载 ${this.plugins.size} 个插件`);
     logger.info(`[插件管理] 已注册 ${totalCommands} 个命令`);
     logger.info(`[插件管理] 已注册 ${totalUpdateHandlers} 个更新处理器`);
     logger.info(`[插件管理] 已注册 ${totalRunHandlers} 个定时脚本`);
+    logger.info(`[插件管理] 已注册 ${totalInlineHandlers} 个内联处理器`);
     logger.info("-------------------------------");
 
     // 设置更新处理器
@@ -926,7 +931,13 @@ export class PluginManager {
     if (update._ === "updateNewMessage") {
       await this.handleCommand(update);
     }
-
+    const botConfig = await getConfig("bot");
+    if (botConfig && typeof botConfig.account_type === "boolean") {
+      const isAccount = botConfig.account_type;
+      if (!isAccount && update._ === "updateNewInlineQuery") {
+        await this.handleInlineQuery(update);
+      }
+    }
     // 收集所有插件处理任务
     const promises: Promise<void>[] = [];
 
@@ -1106,5 +1117,170 @@ export class PluginManager {
     if (tasks.length > 0) {
       Promise.allSettled(tasks);
     }
+  }
+
+  /**
+   * 处理内联查询
+   * @param inlineQuery 内联查询更新
+   */
+  private async handleInlineQuery(inlineQuery: updateNewInlineQuery) {
+    const queryText = inlineQuery?.query || "";
+    const inlineQueryId = inlineQuery?.id;
+
+    if (!inlineQueryId) {
+      return;
+    }
+
+    logger.debug(`[插件管理] 处理内联查询: "${queryText}"`);
+
+    let chatType: "private" | "group" | "channel" = "private";
+    switch (inlineQuery.chat_type?._) {
+      case "chatTypeBasicGroup":
+        chatType = "group";
+        break;
+      case "chatTypeSupergroup":
+        chatType = (inlineQuery.chat_type as any)?.is_channel
+          ? "channel"
+          : "group";
+        break;
+      case "chatTypeSecret":
+      case "chatTypePrivate":
+      default:
+        chatType = "private";
+        break;
+    }
+
+    const rawUserId = (inlineQuery as any)?.sender_user_id;
+    const userId =
+      typeof rawUserId === "number"
+        ? rawUserId
+        : typeof (inlineQuery as any)?.from_user_id === "number"
+          ? (inlineQuery as any).from_user_id
+          : null;
+    const userPermission = userId
+      ? await this.getUserPermission(userId)
+      : "user";
+
+    if (!this.client) {
+      logger.error(`[插件管理] Client 未初始化`);
+      return;
+    }
+
+    const inlineContext = {
+      ...inlineQuery,
+      inline_query: inlineQuery,
+    };
+
+    if (!queryText.trim()) {
+      const results: Array<InputInlineQueryResult$Input> = [];
+
+      for (const pluginInfo of this.plugins.values()) {
+        const handlers = pluginInfo.instance.inlineHandlers || {};
+
+        for (const [inlineName, inlineDef] of Object.entries(handlers)) {
+          try {
+            const validation = await this.validateCommandAccess(
+              inlineName,
+              inlineDef.scope || "all",
+              inlineDef.permission || "all",
+              chatType,
+              userPermission,
+              userId
+            );
+
+            if (!validation.allowed) {
+              continue;
+            }
+
+            results.push({
+              _: "inputInlineQueryResultArticle",
+              id: `tool_${pluginInfo.name}_${inlineName}`.slice(0, 64),
+              title: inlineName,
+              description: inlineDef.description || `${pluginInfo.name} 内联工具`,
+              input_message_content: {
+                _: "inputMessageText",
+                text: {
+                  _: "formattedText",
+                  text: `可用工具: ${inlineName}\n插件: ${pluginInfo.name}\n说明: ${inlineDef.description || "无"}`,
+                  entities: [],
+                },
+                clear_draft: false,
+              },
+            });
+          } catch (e) {
+            logger.error(
+              `[插件管理] 生成内联工具列表项失败: ${pluginInfo.name}.${inlineName}`,
+              e
+            );
+          }
+        }
+      }
+
+      await this.client
+        .invoke({
+          _: "answerInlineQuery",
+          inline_query_id: inlineQueryId,
+          results,
+          is_personal: true,
+          cache_time: 0,
+        })
+        .catch((e: unknown) => {
+          logger.error(`[插件管理] 返回内联工具列表失败:`, e);
+        });
+
+      return;
+    }
+
+    let matched = false;
+    for (const pluginInfo of this.plugins.values()) {
+      const handlers = pluginInfo.instance.inlineHandlers || {};
+
+      for (const [inlineName, inlineDef] of Object.entries(handlers)) {
+        try {
+          const isMatch = inlineDef.matcher(queryText);
+          if (!isMatch) {
+            continue;
+          }
+
+          const validation = await this.validateCommandAccess(
+            inlineName,
+            inlineDef.scope || "all",
+            inlineDef.permission || "all",
+            chatType,
+            userPermission,
+            userId
+          );
+
+          if (!validation.allowed) {
+            logger.debug(
+              `[插件管理] 内联处理器 ${pluginInfo.name}.${inlineName} 权限校验未通过: ${validation.reason || "未知原因"
+              }`
+            );
+            continue;
+          }
+
+          matched = true;
+          await Promise.resolve(
+            inlineDef.handler(inlineContext, this.client)
+          ).catch((e: unknown) => {
+            logger.error(
+              `[插件管理] 插件 ${pluginInfo.name} 内联处理器 ${inlineName} 执行出错:`,
+              e
+            );
+          });
+          return;
+        } catch (e) {
+          logger.error(
+            `[插件管理] 插件 ${pluginInfo.name} 内联处理器执行出错:`,
+            e
+          );
+        }
+      }
+    }
+
+    if (!matched) {
+      logger.debug(`[插件管理] 内联查询未匹配到处理器: "${queryText}"`);
+    }
+
   }
 }
