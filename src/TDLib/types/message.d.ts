@@ -134,6 +134,8 @@ export type sendMessage = {
   readonly topic_id?: MessageTopic$Input;
   /** 是否禁用链接预览 */
   readonly link_preview?: boolean;
+  /** 回复标记 */
+  readonly reply_markup?: ReplyMarkupInput;
   /** TDLib 原始调用方法 */
   readonly invoke?: Td$sendMessage;
   /** 发送消息的超时时间，单位秒 默认 */
@@ -169,6 +171,8 @@ export type sendMessageAlbum = {
   readonly reply_to_message_id?: number;
   /** 聊天中的消息主题 */
   readonly topic_id?: MessageTopic$Input;
+  /** 回复标记 */
+  readonly reply_markup?: ReplyMarkupInput;
   /** 发送消息的超时时间，单位秒 默认1800秒 (半小时) */
   readonly timeout?: number;
   /** TDLib 原始调用方法 */
@@ -197,6 +201,8 @@ export type sendBusinessMessageAlbum = {
 export type editMessageCaption = {
   /** 新的消息文本 */
   readonly text?: string;
+  /** 回复标记 */
+  readonly reply_markup?: ReplyMarkupInput;
   /** 原始调用方法 */
   readonly invoke?: Td$editMessageCaption;
 };
@@ -206,6 +212,8 @@ export type editMessageText = {
   readonly text?: string;
   /** 是否禁用链接预览 */
   readonly link_preview?: boolean;
+  /** 回复标记 */
+  readonly reply_markup?: ReplyMarkupInput;
   /** 原始调用方法 */
   readonly invoke?: Td$editMessageText;
 };
@@ -213,6 +221,8 @@ export type editMessageText = {
 export type editMessageMedia = {
   /** 新的消息文本 */
   readonly text?: string;
+  /** 回复标记 */
+  readonly reply_markup?: ReplyMarkupInput;
   /** 原始调用方法 */
   readonly invoke?: Td$editMessageMedia;
   /** 媒体内容 */
@@ -223,3 +233,112 @@ export type mediasArray =
   | Array<photoMessage | videoMessage>
   | Array<fileMessage>
   | Array<audioMessage>;
+
+/**
+ * 按钮样式（TDLib buttonStyle）
+ */
+export type ButtonStyle =
+  | "default"
+  | "primary"
+  | "danger"
+  | "success";
+
+/**
+ * Callback 按钮
+ */
+export type CallbackButton = {
+  /** 按钮显示文本 */
+  readonly text: string;
+  /** 可选的自定义表情 ID，在按钮上显示一个表情 此功能需要bot拥有者有 Telegram Premium */
+  readonly emoji_id?: string;
+  /** 回调数据（callback query data） */
+  readonly data: string;
+  /** 按钮样式 */
+  readonly style?: ButtonStyle;
+};
+
+/**
+ * Callback + Password 按钮（高风险操作）
+ */
+export type CallbackWithPasswordButton = {
+  /** 按钮显示文本 */
+  readonly text: string;
+  /** 可选的自定义表情 ID，在按钮上显示一个表情 此功能需要bot拥有者有 Telegram Premium */
+  readonly emoji_id?: string;
+  /** 回调数据 */
+  readonly data: string;
+  /** 是否需要密码确认 */
+  readonly password: true;
+  /** 按钮样式 */
+  readonly style?: ButtonStyle;
+};
+
+/**
+ * URL 按钮
+ */
+export type UrlButton = {
+  /** 按钮显示文本 */
+  readonly text: string;
+  /** 可选的自定义表情 ID，在按钮上显示一个表情 此功能需要bot拥有者有 Telegram Premium */
+  readonly emoji_id?: string;
+  /** 跳转链接 */
+  readonly url: string;
+  /** 按钮样式 */
+  readonly style?: ButtonStyle;
+};
+
+/**
+ * 用户按钮（跳转用户）
+ */
+export type UserButton = {
+  /** 按钮显示文本 */
+  readonly text: string;
+  /** 可选的自定义表情 ID，在按钮上显示一个表情 此功能需要bot拥有者有 Telegram Premium */
+  readonly emoji_id?: string;
+  /** 用户 ID */
+  readonly user_id: number;
+  /** 按钮样式 */
+  readonly style?: ButtonStyle;
+};
+
+/**
+ * WebApp 按钮
+ */
+export type WebAppButton = {
+  /** 按钮显示文本 */
+  readonly text: string;
+  /** 可选的自定义表情 ID，在按钮上显示一个表情 此功能需要bot拥有者有 Telegram Premium */
+  readonly emoji_id?: string;
+  /** WebApp URL */
+  readonly web_app: string;
+  /** 按钮样式 */
+  readonly style?: ButtonStyle;
+};
+
+/**
+ * 所有支持的按钮类型
+ */
+export type ReplyButton =
+  | CallbackButton
+  | CallbackWithPasswordButton
+  | UrlButton
+  | UserButton
+  | WebAppButton;
+
+/**
+ * 按钮输入（二维数组 = 行列结构）
+ *
+ * @example
+ * ```ts
+ * reply_markup: [
+ *   [
+ *     { text: "确认", data: "ok", style: "primary" },
+ *     { text: "删除", data: "del", style: "danger" },
+ *   ],
+ *   [
+ *     { text: "谷歌", url: "https://google.com" },
+ *   ],
+ * ]
+ * ```
+ */
+export type ReplyMarkupInput = ReplyButton[][];

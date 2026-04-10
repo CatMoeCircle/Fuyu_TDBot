@@ -8,6 +8,8 @@ import type {
   editMessageMedia as Td$editMessageMediaOriginal,
   InputMessageContent$Input,
   InputMessageReplyTo$Input,
+  ButtonStyle as Td$ButtonStyle,
+  inlineKeyboardButton,
   message,
   messages,
 } from "tdlib-types";
@@ -21,6 +23,9 @@ import type {
   editMessageCaption as Td$editMessageCaption,
   editMessageText as Td$editMessageText,
   editMessageMedia as Td$editMessageMedia,
+  ButtonStyle,
+  ReplyButton,
+  ReplyMarkupInput,
 } from "../types/message.ts";
 import { parseTextEntities } from "./index.ts";
 
@@ -40,6 +45,7 @@ export async function sendMessage(
     media,
     reply_to_message_id,
     topic_id,
+    reply_markup,
     invoke,
     link_preview,
     timeout = 360,
@@ -51,7 +57,7 @@ export async function sendMessage(
       media !== undefined
         ? await buildInputMessageContent(client, text, media)
         : text !== undefined
-        ? {
+          ? {
             _: "inputMessageText",
             text: await parseTextEntities(client, text, "MarkdownV2"),
             link_preview_options: {
@@ -59,12 +65,13 @@ export async function sendMessage(
               is_disabled: link_preview ?? false,
             },
           }
-        : undefined;
+          : undefined;
 
     const payload: Td$sendMessageOriginal = {
       _: "sendMessage",
       chat_id,
       ...(topic_id && { topic_id }),
+      ...(reply_markup && { reply_markup: buildReplyMarkup(reply_markup) }),
       ...(reply_to_message_id && {
         reply_to: {
           _: "inputMessageReplyToMessage",
@@ -129,15 +136,16 @@ export async function sendMessageAlbum(
     caption,
     reply_to_message_id,
     topic_id,
+    reply_markup,
     timeout = 1800,
     invoke,
   } = params;
 
   const reply_to: InputMessageReplyTo$Input | undefined = reply_to_message_id
     ? {
-        _: "inputMessageReplyToMessage",
-        message_id: reply_to_message_id,
-      }
+      _: "inputMessageReplyToMessage",
+      message_id: reply_to_message_id,
+    }
     : undefined;
 
   // 无媒体时直接发送
@@ -148,6 +156,7 @@ export async function sendMessageAlbum(
         chat_id,
         topic_id,
         reply_to,
+        ...(reply_markup && { reply_markup: buildReplyMarkup(reply_markup) }),
         ...invoke,
       });
     } catch (error) {
@@ -174,6 +183,7 @@ export async function sendMessageAlbum(
       topic_id,
       input_message_contents,
       reply_to,
+      ...(reply_markup && { reply_markup: buildReplyMarkup(reply_markup) }),
     };
     const result = await client.invoke({ ...payload, ...invoke });
     const messages = result.messages ?? [];
@@ -288,7 +298,7 @@ export async function editMessageCaption(
   message_id: number,
   params: Td$editMessageCaption
 ) {
-  const { text, invoke } = params;
+  const { text, reply_markup, invoke } = params;
   const payload: Td$editMessageCaptionOriginal = {
     _: "editMessageCaption",
     chat_id,
@@ -296,6 +306,7 @@ export async function editMessageCaption(
     caption: text
       ? await parseTextEntities(client, text, "MarkdownV2")
       : undefined,
+    ...(reply_markup && { reply_markup: buildReplyMarkup(reply_markup) }),
   };
 
   try {
@@ -389,7 +400,7 @@ export async function editMessageText(
   message_id: number,
   params: Td$editMessageText
 ) {
-  const { text, link_preview, invoke } = params;
+  const { text, link_preview, reply_markup, invoke } = params;
 
   const payload: Td$editMessageTextOriginal = {
     _: "editMessageText",
@@ -397,13 +408,14 @@ export async function editMessageText(
     message_id,
     input_message_content: text
       ? {
-          _: "inputMessageText",
-          text: await parseTextEntities(client, text, "MarkdownV2"),
-          link_preview_options: link_preview
-            ? { _: "linkPreviewOptions", is_disabled: link_preview }
-            : { _: "linkPreviewOptions", is_disabled: false },
-        }
+        _: "inputMessageText",
+        text: await parseTextEntities(client, text, "MarkdownV2"),
+        link_preview_options: link_preview
+          ? { _: "linkPreviewOptions", is_disabled: link_preview }
+          : { _: "linkPreviewOptions", is_disabled: false },
+      }
       : undefined,
+    ...(reply_markup && { reply_markup: buildReplyMarkup(reply_markup) }),
   };
 
   try {
@@ -492,7 +504,7 @@ export async function editMessageMedia(
   message_id: number,
   params: Td$editMessageMedia
 ) {
-  const { text, media, invoke } = params;
+  const { text, media, reply_markup, invoke } = params;
   const payload: Td$editMessageMediaOriginal = {
     _: "editMessageMedia",
     chat_id,
@@ -500,6 +512,7 @@ export async function editMessageMedia(
     input_message_content: media
       ? await buildInputMessageContent(client, text, media)
       : undefined,
+    ...(reply_markup && { reply_markup: buildReplyMarkup(reply_markup) }),
   };
 
   try {
@@ -572,21 +585,21 @@ export async function buildInputMessageContent(
       photo:
         media.photo.path !== undefined
           ? {
-              _: "inputFileLocal",
-              path: media.photo.path,
-            }
+            _: "inputFileLocal",
+            path: media.photo.path,
+          }
           : {
-              _: "inputFileRemote",
-              id: media.photo.id,
-            },
+            _: "inputFileRemote",
+            id: media.photo.id,
+          },
       thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
             ? {
-                _: "inputFileLocal",
-                path: media.thumbnail.thumbnail.path,
-              }
+              _: "inputFileLocal",
+              path: media.thumbnail.thumbnail.path,
+            }
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,
@@ -597,8 +610,8 @@ export async function buildInputMessageContent(
         text !== undefined
           ? await parseTextEntities(client, text, "MarkdownV2")
           : media.caption
-          ? await parseTextEntities(client, media.caption, "MarkdownV2")
-          : undefined,
+            ? await parseTextEntities(client, media.caption, "MarkdownV2")
+            : undefined,
       has_spoiler: media.has_spoiler || false,
     };
   } else if ("video" in media) {
@@ -607,23 +620,23 @@ export async function buildInputMessageContent(
       video:
         media.video.path !== undefined
           ? {
-              _: "inputFileLocal",
-              path: media.video.path,
-            }
+            _: "inputFileLocal",
+            path: media.video.path,
+          }
           : {
-              _: "inputFileRemote",
-              id: media.video.id,
-            },
+            _: "inputFileRemote",
+            id: media.video.id,
+          },
       cover:
         media.cover?.path !== undefined
           ? {
-              _: "inputFileLocal",
-              path: media.cover.path,
-            }
+            _: "inputFileLocal",
+            path: media.cover.path,
+          }
           : {
-              _: "inputFileRemote",
-              id: media.cover?.id,
-            },
+            _: "inputFileRemote",
+            id: media.cover?.id,
+          },
       duration: media.duration,
       width: media.width,
       height: media.height,
@@ -633,8 +646,8 @@ export async function buildInputMessageContent(
         text !== undefined
           ? await parseTextEntities(client, text, "MarkdownV2")
           : media.caption
-          ? await parseTextEntities(client, media.caption, "MarkdownV2")
-          : undefined,
+            ? await parseTextEntities(client, media.caption, "MarkdownV2")
+            : undefined,
     };
   } else if ("audio" in media) {
     input_message_content = {
@@ -642,21 +655,21 @@ export async function buildInputMessageContent(
       audio:
         media.audio.path !== undefined
           ? {
-              _: "inputFileLocal",
-              path: media.audio.path,
-            }
+            _: "inputFileLocal",
+            path: media.audio.path,
+          }
           : {
-              _: "inputFileRemote",
-              id: media.audio.id,
-            },
+            _: "inputFileRemote",
+            id: media.audio.id,
+          },
       album_cover_thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.album_cover_thumbnail !== undefined
             ? {
-                _: "inputFileLocal",
-                path: media.album_cover_thumbnail.thumbnail.path,
-              }
+              _: "inputFileLocal",
+              path: media.album_cover_thumbnail.thumbnail.path,
+            }
             : undefined,
         width: media.album_cover_thumbnail?.width,
         height: media.album_cover_thumbnail?.height,
@@ -668,8 +681,8 @@ export async function buildInputMessageContent(
         text !== undefined
           ? await parseTextEntities(client, text, "MarkdownV2")
           : media.caption
-          ? await parseTextEntities(client, media.caption, "MarkdownV2")
-          : undefined,
+            ? await parseTextEntities(client, media.caption, "MarkdownV2")
+            : undefined,
     };
   } else if ("file" in media) {
     input_message_content = {
@@ -677,21 +690,21 @@ export async function buildInputMessageContent(
       document:
         media.file.path !== undefined
           ? {
-              _: "inputFileLocal",
-              path: media.file.path,
-            }
+            _: "inputFileLocal",
+            path: media.file.path,
+          }
           : {
-              _: "inputFileRemote",
-              id: media.file.id,
-            },
+            _: "inputFileRemote",
+            id: media.file.id,
+          },
       thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
             ? {
-                _: "inputFileLocal",
-                path: media.thumbnail.thumbnail.path,
-              }
+              _: "inputFileLocal",
+              path: media.thumbnail.thumbnail.path,
+            }
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,
@@ -703,4 +716,126 @@ export async function buildInputMessageContent(
     };
   }
   return input_message_content;
+}
+
+/**
+ * 构建 TDLib 按钮样式
+ *
+ * @param style 用户输入样式
+ * @returns TDLib 样式对象
+ */
+function buildButtonStyle(style?: ButtonStyle): Td$ButtonStyle {
+  if (!style) return {
+    _: "buttonStyleDefault"
+  }
+
+  const map = {
+    default: "buttonStyleDefault",
+    primary: "buttonStylePrimary",
+    danger: "buttonStyleDanger",
+    success: "buttonStyleSuccess",
+  } as const;
+
+  return { _: map[style] ?? "buttonStyleDefault" };
+}
+
+/**
+ * 构建 TDLib reply_markup
+ *
+ * @param replyMarkup 用户输入的二维按钮数组
+ * @returns TDLib 内联键盘
+ */
+function buildReplyMarkup(replyMarkup?: ReplyMarkupInput) {
+  if (!Array.isArray(replyMarkup) || replyMarkup.length === 0) return undefined;
+
+  const rows = replyMarkup
+    .filter((row) => Array.isArray(row) && row.length > 0)
+    .map((row) => row.map((btn) => buildButton(btn)));
+
+  if (rows.length === 0) return undefined;
+
+  return {
+    _: "replyMarkupInlineKeyboard" as "replyMarkupInlineKeyboard",
+    rows,
+  };
+}
+
+/**
+ * 将用户按钮转换为 TDLib 按钮
+ *
+ * @param btn 用户输入按钮
+ * @returns TDLib 按钮结构
+ */
+function buildButton(btn: ReplyButton): inlineKeyboardButton {
+  // CallbackWithPassword（优先判断）
+  if ("data" in btn && "password" in btn) {
+    return {
+      _: "inlineKeyboardButton",
+      text: btn.text,
+      icon_custom_emoji_id: btn.emoji_id ?? "0",
+      type: {
+        _: "inlineKeyboardButtonTypeCallbackWithPassword",
+        data: btn.data,
+      },
+      style: buildButtonStyle(btn.style),
+    };
+  }
+
+  // Callback
+  if ("data" in btn) {
+    return {
+      _: "inlineKeyboardButton",
+      text: btn.text,
+      icon_custom_emoji_id: btn.emoji_id ?? "0",
+      type: {
+        _: "inlineKeyboardButtonTypeCallback",
+        data: btn.data,
+      },
+      style: buildButtonStyle(btn.style),
+    };
+  }
+
+  // URL
+  if ("url" in btn) {
+    return {
+      _: "inlineKeyboardButton",
+      text: btn.text,
+      icon_custom_emoji_id: btn.emoji_id ?? "0",
+      type: {
+        _: "inlineKeyboardButtonTypeUrl",
+        url: btn.url,
+      },
+      style: buildButtonStyle(btn.style),
+    };
+  }
+
+  // User
+  if ("user_id" in btn) {
+    return {
+      _: "inlineKeyboardButton",
+      text: btn.text,
+      icon_custom_emoji_id: btn.emoji_id ?? "0",
+      type: {
+        _: "inlineKeyboardButtonTypeUser",
+        user_id: btn.user_id,
+      },
+      style: buildButtonStyle(btn.style),
+    };
+  }
+
+  // WebApp
+  if ("web_app" in btn) {
+    return {
+      _: "inlineKeyboardButton",
+      text: btn.text,
+      icon_custom_emoji_id: btn.emoji_id ?? "0",
+      type: {
+        _: "inlineKeyboardButtonTypeWebApp",
+        url: btn.web_app,
+      },
+      style: buildButtonStyle(btn.style),
+    };
+  }
+
+  throw new Error("Invalid ReplyButton");
 }
