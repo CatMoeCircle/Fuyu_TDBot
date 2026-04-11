@@ -596,10 +596,17 @@ export async function buildInputMessageContent(
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
-            ? {
-              _: "inputFileLocal",
-              path: media.thumbnail.thumbnail.path,
-            }
+            ? media.thumbnail.thumbnail.path !== undefined
+              ? {
+                _: "inputFileLocal",
+                path: media.thumbnail.thumbnail.path,
+              }
+              : media.thumbnail.thumbnail.url !== undefined
+                ? {
+                  _: "inputFileRemote",
+                  id: media.thumbnail.thumbnail.url,
+                }
+                : undefined
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,
@@ -666,10 +673,17 @@ export async function buildInputMessageContent(
         _: "inputThumbnail",
         thumbnail:
           media.album_cover_thumbnail !== undefined
-            ? {
-              _: "inputFileLocal",
-              path: media.album_cover_thumbnail.thumbnail.path,
-            }
+            ? media.album_cover_thumbnail.thumbnail.path !== undefined
+              ? {
+                _: "inputFileLocal",
+                path: media.album_cover_thumbnail.thumbnail.path,
+              }
+              : media.album_cover_thumbnail.thumbnail.url !== undefined
+                ? {
+                  _: "inputFileRemote",
+                  id: media.album_cover_thumbnail.thumbnail.url,
+                }
+                : undefined
             : undefined,
         width: media.album_cover_thumbnail?.width,
         height: media.album_cover_thumbnail?.height,
@@ -701,10 +715,17 @@ export async function buildInputMessageContent(
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
-            ? {
-              _: "inputFileLocal",
-              path: media.thumbnail.thumbnail.path,
-            }
+            ? media.thumbnail.thumbnail.path !== undefined
+              ? {
+                _: "inputFileLocal",
+                path: media.thumbnail.thumbnail.path,
+              }
+              : media.thumbnail.thumbnail.url !== undefined
+                ? {
+                  _: "inputFileRemote",
+                  id: media.thumbnail.thumbnail.url,
+                }
+                : undefined
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,
@@ -745,7 +766,7 @@ function buildButtonStyle(style?: ButtonStyle): Td$ButtonStyle {
  * @param replyMarkup 用户输入的二维按钮数组
  * @returns TDLib 内联键盘
  */
-function buildReplyMarkup(replyMarkup?: ReplyMarkupInput) {
+export function buildReplyMarkup(replyMarkup?: ReplyMarkupInput) {
   if (!Array.isArray(replyMarkup) || replyMarkup.length === 0) return undefined;
 
   const rows = replyMarkup
@@ -766,7 +787,7 @@ function buildReplyMarkup(replyMarkup?: ReplyMarkupInput) {
  * @param btn 用户输入按钮
  * @returns TDLib 按钮结构
  */
-function buildButton(btn: ReplyButton): inlineKeyboardButton {
+export function buildButton(btn: ReplyButton): inlineKeyboardButton {
   // CallbackWithPassword（优先判断）
   if ("data" in btn && "password" in btn) {
     return {

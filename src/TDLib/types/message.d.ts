@@ -60,6 +60,8 @@ export type inputThumbnail = {
   readonly thumbnail: {
     /** 文件路径 */
     readonly path: string;
+    /** 图片远程链接，如果过大可能会导致失效 */
+    readonly url?: string;
   };
   /** 缩略图宽度，通常不应超过 320。如果未知，请使用 0 */
   readonly width?: number;
