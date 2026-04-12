@@ -125,11 +125,49 @@ export type audioMessage = {
   readonly caption?: string;
 };
 
+export type animationMessage = {
+  /** GIF / 动图文件 */
+  readonly animation: inputFile;
+  /** 动图缩略图 */
+  readonly thumbnail?: inputThumbnail;
+  /** 动图时长（秒） */
+  readonly duration?: number;
+  /** 动图宽度 */
+  readonly width?: number;
+  /** 动图高度 */
+  readonly height?: number;
+  /** 动图标题 */
+  readonly caption?: string;
+  /** 是否将标题显示在媒体上方（而不是下方） */
+  readonly show_caption_above_media?: boolean;
+  /** 动图剧透遮罩 */
+  readonly has_spoiler?: boolean;
+};
+
+export type stickerMessage = {
+  /** 贴纸文件 */
+  readonly sticker: inputFile;
+  /** 贴纸缩略图（可选） */
+  readonly thumbnail?: inputThumbnail;
+  /** 贴纸宽度（可选） */
+  readonly width?: number;
+  /** 贴纸高度（可选） */
+  readonly height?: number;
+  /** 贴纸对应 emoji（可选） */
+  readonly emoji?: string;
+};
+
 export type sendMessage = {
   /** 消息文本 */
   readonly text?: string;
   /** 发送媒体消息如果你需要发送相册组请使用 `sendMessageAlbum` 而不是 `sendMessage` */
-  readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
+  readonly media?:
+  | photoMessage
+  | videoMessage
+  | audioMessage
+  | fileMessage
+  | animationMessage
+  | stickerMessage;
   /** 回复消息 ID */
   readonly reply_to_message_id?: number;
   /** 聊天中的消息主题 */
@@ -150,7 +188,13 @@ export type sendBusinessMessage = {
   /** 业务连接 ID */
   readonly business_connection_id?: string;
   /** 发送媒体消息如果你需要发送相册组请使用 `sendMessageAlbum` 而不是 `sendMessage` */
-  readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
+  readonly media?:
+  | photoMessage
+  | videoMessage
+  | audioMessage
+  | fileMessage
+  | animationMessage
+  | stickerMessage;
   /** 回复消息 ID */
   readonly reply_to_message_id?: number;
   /** 是否禁用链接预览 */
@@ -228,7 +272,13 @@ export type editMessageMedia = {
   /** 原始调用方法 */
   readonly invoke?: Td$editMessageMedia;
   /** 媒体内容 */
-  readonly media?: photoMessage | videoMessage | audioMessage | fileMessage;
+  readonly media?:
+  | photoMessage
+  | videoMessage
+  | audioMessage
+  | fileMessage
+  | animationMessage
+  | stickerMessage;
 };
 
 export type mediasArray =
