@@ -13,7 +13,14 @@ import type {
 import { Plugin as BasePlugin } from "./BasePlugin.ts";
 import { getConfig } from "@db/config.ts";
 import type { Client } from "tdl";
-import type { Update, updateNewMessage, updateNewInlineQuery, InputInlineQueryResult$Input } from "tdlib-types";
+import type { Update, updateNewMessage, updateNewInlineQuery } from "tdlib-types";
+import type {
+  InlineContext,
+  InlineResult,
+  InlineResultSet,
+  InlineScope,
+} from "@TDLib/types/inline.ts";
+import { toTdInlineResults } from "@TDLib/function/inlineAdapter.ts";
 
 export class PluginManager {
   private plugins: Map<string, PluginInfo> = new Map();
@@ -1120,28 +1127,38 @@ export class PluginManager {
   }
 
   /**
-   * 处理内联查询
+   * 处理内联查询（新架构）
+   * 流程：
+   * 1. 创建 InlineContext
+   * 2. 过滤 + 权限校验
+   * 3. matcher() - 获取优先级
+   * 4. handler() - 并发执行收集结果
+   * 5. merge + 转换 + 发送
    * @param inlineQuery 内联查询更新
    */
   private async handleInlineQuery(inlineQuery: updateNewInlineQuery) {
     const queryText = inlineQuery?.query || "";
     const inlineQueryId = inlineQuery?.id;
 
-    if (!inlineQueryId) {
+    if (!inlineQueryId || !this.client) {
+      logger.error(
+        `[插件管理] 内联查询参数缺失或 Client 未初始化`
+      );
       return;
     }
 
     logger.debug(`[插件管理] 处理内联查询: "${queryText}"`);
 
-    let chatType: "private" | "group" | "channel" = "private";
+    // 第一步：提取并标准化上下文信息
+    let chatType: InlineContext["chat_type"] = "private";
     switch (inlineQuery.chat_type?._) {
       case "chatTypeBasicGroup":
         chatType = "group";
         break;
       case "chatTypeSupergroup":
-        chatType = (inlineQuery.chat_type as any)?.is_channel
+        chatType = (inlineQuery.chat_type)?.is_channel
           ? "channel"
-          : "group";
+          : "supergroup";
         break;
       case "chatTypeSecret":
       case "chatTypePrivate":
@@ -1150,137 +1167,281 @@ export class PluginManager {
         break;
     }
 
-    const rawUserId = (inlineQuery as any)?.sender_user_id;
-    const userId =
-      typeof rawUserId === "number"
-        ? rawUserId
-        : typeof (inlineQuery as any)?.from_user_id === "number"
-          ? (inlineQuery as any).from_user_id
-          : null;
+    const userId = inlineQuery?.sender_user_id;
+
     const userPermission = userId
       ? await this.getUserPermission(userId)
       : "user";
 
-    if (!this.client) {
-      logger.error(`[插件管理] Client 未初始化`);
-      return;
-    }
+    const role: "owner" | "admin" | "user" = (userPermission as "owner" | "admin" | "user") || "user";
 
-    const inlineContext = {
-      ...inlineQuery,
-      inline_query: inlineQuery,
+    const ctx: InlineContext = {
+      query: queryText,
+      user_id: userId ?? 0,
+      chat_type: chatType,
+      offset: inlineQuery?.offset,
+      role,
     };
 
+    logger.debug(`[插件管理] InlineContext:`, ctx);
+
+    // 第二步：如果查询为空，列出所有可用工具
     if (!queryText.trim()) {
-      const results: Array<InputInlineQueryResult$Input> = [];
+      logger.debug(`[插件管理] 查询为空，生成可用工具列表`);
+      const toolResults: InlineResult[] = [];
 
       for (const pluginInfo of this.plugins.values()) {
         const handlers = pluginInfo.instance.inlineHandlers || {};
 
-        for (const [inlineName, inlineDef] of Object.entries(handlers)) {
+        for (const [handlerName, inlineDef] of Object.entries(handlers)) {
           try {
-            const validation = await this.validateCommandAccess(
-              inlineName,
-              inlineDef.scope || "all",
-              inlineDef.permission || "all",
-              chatType,
-              userPermission,
-              userId
+            // 权限和范围校验
+            const inScope = this.isInlineInScope(
+              inlineDef.scope,
+              ctx.chat_type,
+              ctx.role ?? "user"
             );
 
-            if (!validation.allowed) {
+            if (!inScope) {
+              logger.debug(
+                `[插件管理] ${pluginInfo.name}.${handlerName} 不在使用范围内`
+              );
               continue;
             }
 
-            results.push({
-              _: "inputInlineQueryResultArticle",
-              id: `tool_${pluginInfo.name}_${inlineName}`.slice(0, 64),
-              title: inlineName,
-              description: inlineDef.description || `${pluginInfo.name} 内联工具`,
-              input_message_content: {
-                _: "inputMessageText",
-                text: {
-                  _: "formattedText",
-                  text: `可用工具: ${inlineName}\n插件: ${pluginInfo.name}\n说明: ${inlineDef.description || "无"}`,
-                  entities: [],
-                },
-                clear_draft: false,
+            const hasPermission = this.hasInlinePermission(
+              inlineDef.permission || "all",
+              ctx.role ?? "user"
+            );
+
+            if (!hasPermission) {
+              logger.debug(
+                `[插件管理] ${pluginInfo.name}.${handlerName} 权限不足`
+              );
+              continue;
+            }
+
+            toolResults.push({
+              type: "article",
+              id: `tool_${pluginInfo.name}_${handlerName}`.slice(0, 64),
+              title: handlerName,
+              message: {
+                text: `📌 可用工具: **${handlerName}**\n🔌 插件: ${pluginInfo.name}\n📝 说明: ${inlineDef.description || "无"}`,
               },
             });
           } catch (e) {
             logger.error(
-              `[插件管理] 生成内联工具列表项失败: ${pluginInfo.name}.${inlineName}`,
+              `[插件管理] 生成工具列表失败: ${pluginInfo.name}.${handlerName}`,
               e
             );
           }
         }
       }
 
+      // 转换并发送
+      const tdResults = await toTdInlineResults(this.client, toolResults);
       await this.client
         .invoke({
           _: "answerInlineQuery",
           inline_query_id: inlineQueryId,
-          results,
+          results: tdResults,
           is_personal: true,
           cache_time: 0,
         })
-        .catch((e: unknown) => {
+        .catch((e) => {
           logger.error(`[插件管理] 返回内联工具列表失败:`, e);
         });
 
       return;
     }
 
-    let matched = false;
+    // 第三步：处理非空查询 - 并发执行所有匹配的 handler
+    logger.debug(`[插件管理] 执行内联查询处理...`);
+
+    const matchedTasks: Array<{
+      pluginName: string;
+      handlerName: string;
+      priority: number;
+      task: Promise<InlineResult[] | InlineResultSet>;
+    }> = [];
+
     for (const pluginInfo of this.plugins.values()) {
       const handlers = pluginInfo.instance.inlineHandlers || {};
 
-      for (const [inlineName, inlineDef] of Object.entries(handlers)) {
+      for (const [handlerName, inlineDef] of Object.entries(handlers)) {
         try {
-          const isMatch = inlineDef.matcher(queryText);
-          if (!isMatch) {
-            continue;
-          }
-
-          const validation = await this.validateCommandAccess(
-            inlineName,
-            inlineDef.scope || "all",
-            inlineDef.permission || "all",
-            chatType,
-            userPermission,
-            userId
+          // 权限和范围校验
+          const inScope = this.isInlineInScope(
+            inlineDef.scope,
+            ctx.chat_type,
+            ctx.role ?? "user"
           );
 
-          if (!validation.allowed) {
+          if (!inScope) {
+            continue;
+          }
+
+          const hasPermission = this.hasInlinePermission(
+            inlineDef.permission || "all",
+            ctx.role ?? "user"
+          );
+
+          if (!hasPermission) {
             logger.debug(
-              `[插件管理] 内联处理器 ${pluginInfo.name}.${inlineName} 权限校验未通过: ${validation.reason || "未知原因"
-              }`
+              `[插件管理] ${pluginInfo.name}.${handlerName} 权限校验失败`
             );
             continue;
           }
 
-          matched = true;
-          await Promise.resolve(
-            inlineDef.handler(inlineContext, this.client)
-          ).catch((e: unknown) => {
-            logger.error(
-              `[插件管理] 插件 ${pluginInfo.name} 内联处理器 ${inlineName} 执行出错:`,
-              e
-            );
+          // 执行 matcher() 获取优先级
+          const matchResult = inlineDef.matcher(ctx);
+          if (!matchResult) {
+            continue;
+          }
+
+          const priority =
+            typeof matchResult === "number" ? matchResult : 0;
+
+          logger.debug(
+            `[插件管理] 匹配: ${pluginInfo.name}.${handlerName} (优先级: ${priority})`
+          );
+
+          matchedTasks.push({
+            pluginName: pluginInfo.name,
+            handlerName,
+            priority,
+            task: Promise.resolve(inlineDef.handler(ctx)),
           });
-          return;
         } catch (e) {
           logger.error(
-            `[插件管理] 插件 ${pluginInfo.name} 内联处理器执行出错:`,
+            `[插件管理] matcher 执行失败: ${pluginInfo.name}.${handlerName}`,
             e
           );
         }
       }
     }
 
-    if (!matched) {
-      logger.debug(`[插件管理] 内联查询未匹配到处理器: "${queryText}"`);
+    if (matchedTasks.length === 0) {
+      logger.debug(`[插件管理] 未匹配到任何处理器: "${queryText}"`);
+      await this.client
+        .invoke({
+          _: "answerInlineQuery",
+          inline_query_id: inlineQueryId,
+          results: [],
+          is_personal: true,
+          cache_time: 60,
+        })
+        .catch((e) => {
+          logger.warn(`[插件管理] 发送空结果失败:`, e);
+        });
+      return;
     }
 
+    // 第四步：并发执行 handler() 收集结果
+    const results = await Promise.allSettled(
+      matchedTasks.map((t) =>
+        t.task.catch((e) => {
+          logger.error(
+            `[插件管理] handler 执行失败: ${t.pluginName}.${t.handlerName}`,
+            e
+          );
+          return { results: [] } as InlineResultSet;
+        })
+      )
+    );
+
+    // 第五步：合并结果
+    const allResults: InlineResult[] = [];
+    let cacheTime = 300;
+    let isPersonal = false;
+
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === "fulfilled") {
+        const data = result.value;
+        if (Array.isArray(data)) {
+          allResults.push(...data);
+        } else if (data && "results" in data) {
+          allResults.push(...data.results);
+          if (data.cache_time !== undefined) {
+            cacheTime = Math.min(cacheTime, data.cache_time);
+          }
+          if (data.is_personal) {
+            isPersonal = true;
+          }
+        }
+      }
+    }
+
+    logger.debug(
+      `[插件管理] 合并结果: ${allResults.length} 条 (cache: ${cacheTime}s, personal: ${isPersonal})`
+    );
+
+    // 第六步：转换为 TDLib 格式
+    const tdResults = await toTdInlineResults(this.client, allResults);
+
+    // 第七步：发送
+    await this.client
+      .invoke({
+        _: "answerInlineQuery",
+        inline_query_id: inlineQueryId,
+        results: tdResults,
+        is_personal: isPersonal,
+        cache_time: cacheTime,
+      })
+      .catch((e) => {
+        logger.error(`[插件管理] 发送内联查询结果失败:`, e);
+      });
+  }
+
+  /**
+   * 检查内联处理器是否在当前范围内
+   */
+  private isInlineInScope(
+    scope: InlineScope | undefined,
+    chatType: InlineContext["chat_type"],
+    role: "owner" | "admin" | "user"
+  ): boolean {
+    if (!scope) {
+      return true;
+    }
+
+    // 兼容命令风格 scope: "private" | ["group", "channel"]
+    if (typeof scope === "string" || Array.isArray(scope)) {
+      const scopeArray = Array.isArray(scope) ? scope : [scope];
+      if (scopeArray.includes("all")) {
+        return true;
+      }
+      return scopeArray.includes(chatType);
+    }
+
+    if (scope.chat_type && !scope.chat_type.includes(chatType)) {
+      return false;
+    }
+
+    if (scope.roles && !scope.roles.includes(role)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 检查用户是否有权限使用此内联处理器
+   */
+  private hasInlinePermission(
+    permission: "owner" | "admin" | "all",
+    role: "owner" | "admin" | "user"
+  ): boolean {
+    if (permission === "all") {
+      return true;
+    }
+    if (permission === "admin") {
+      return role === "admin" || role === "owner";
+    }
+    if (permission === "owner") {
+      return role === "owner";
+    }
+    return false;
   }
 }

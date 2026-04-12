@@ -20,6 +20,8 @@ import type {
   videoMessage,
   audioMessage,
   fileMessage,
+  animationMessage,
+  stickerMessage,
   editMessageCaption as Td$editMessageCaption,
   editMessageText as Td$editMessageText,
   editMessageMedia as Td$editMessageMedia,
@@ -576,7 +578,13 @@ export async function editMessageMedia(
 export async function buildInputMessageContent(
   client: Client,
   text: string | undefined,
-  media: photoMessage | videoMessage | audioMessage | fileMessage
+  media:
+    | photoMessage
+    | videoMessage
+    | audioMessage
+    | fileMessage
+    | animationMessage
+    | stickerMessage
 ) {
   let input_message_content: InputMessageContent$Input | undefined;
   if ("photo" in media) {
@@ -734,6 +742,85 @@ export async function buildInputMessageContent(
         text !== undefined
           ? await parseTextEntities(client, text, "MarkdownV2")
           : undefined,
+    };
+  } else if ("animation" in media) {
+    input_message_content = {
+      _: "inputMessageAnimation",
+      animation:
+        media.animation.path !== undefined
+          ? {
+            _: "inputFileLocal",
+            path: media.animation.path,
+          }
+          : {
+            _: "inputFileRemote",
+            id: media.animation.id,
+          },
+      thumbnail: {
+        _: "inputThumbnail",
+        thumbnail:
+          media.thumbnail !== undefined
+            ? media.thumbnail.thumbnail.path !== undefined
+              ? {
+                _: "inputFileLocal",
+                path: media.thumbnail.thumbnail.path,
+              }
+              : media.thumbnail.thumbnail.url !== undefined
+                ? {
+                  _: "inputFileRemote",
+                  id: media.thumbnail.thumbnail.url,
+                }
+                : undefined
+            : undefined,
+        width: media.thumbnail?.width,
+        height: media.thumbnail?.height,
+      },
+      width: media.width,
+      height: media.height,
+      duration: media.duration,
+      has_spoiler: media.has_spoiler,
+      caption:
+        text !== undefined
+          ? await parseTextEntities(client, text, "MarkdownV2")
+          : media.caption
+            ? await parseTextEntities(client, media.caption, "MarkdownV2")
+            : undefined,
+    };
+  } else if ("sticker" in media) {
+    input_message_content = {
+      _: "inputMessageSticker",
+      sticker:
+        media.sticker.path !== undefined
+          ? {
+            _: "inputFileLocal",
+            path: media.sticker.path,
+          }
+          : {
+            _: "inputFileRemote",
+            id: media.sticker.id,
+          },
+      thumbnail: {
+        _: "inputThumbnail",
+        thumbnail:
+          media.thumbnail !== undefined
+            ? media.thumbnail.thumbnail.path !== undefined
+              ? {
+                _: "inputFileLocal",
+                path: media.thumbnail.thumbnail.path,
+              }
+              : media.thumbnail.thumbnail.url !== undefined
+                ? {
+                  _: "inputFileRemote",
+                  id: media.thumbnail.thumbnail.url,
+                }
+                : undefined
+            : undefined,
+        width: media.thumbnail?.width,
+        height: media.thumbnail?.height,
+      },
+      width: media.width,
+      height: media.height,
+      emoji: media.emoji,
     };
   }
   return input_message_content;
