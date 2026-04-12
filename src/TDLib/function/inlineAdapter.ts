@@ -59,6 +59,7 @@ export async function toTdInlineResult(
                     _: "inputInlineQueryResultArticle",
                     id: result.id,
                     title: result.title,
+                    description: result.description,
                     input_message_content: messageContent,
                     ...(replyMarkup && { reply_markup: replyMarkup }),
                 };
@@ -70,9 +71,9 @@ export async function toTdInlineResult(
                     _: "inputInlineQueryResultPhoto",
                     id: result.id,
                     photo_url: result.photo_url,
-                    thumbnail_url: result.photo_url, // 使用同一 URL
+                    thumbnail_url: result.photo_url,
                     title: result.title,
-                    description: undefined, // 可选字段，暂不使用
+                    description: result.description,
                     input_message_content: messageContent,
                     ...(replyMarkup && { reply_markup: replyMarkup }),
                 };
@@ -98,6 +99,7 @@ export async function toTdInlineResult(
                     _: "inputInlineQueryResultVideo",
                     id: result.id,
                     title: result.title,
+                    description: result.description,
                     video_url: result.video_url,
                     mime_type: "video/mp4",
                     thumbnail_url: result.thumbnail_url ?? result.video_url,

@@ -1225,6 +1225,7 @@ export class PluginManager {
               type: "article",
               id: `tool_${pluginInfo.name}_${handlerName}`.slice(0, 64),
               title: handlerName,
+              description: inlineDef.description || "无介绍",
               message: {
                 text: `📌 可用工具: **${handlerName}**\n🔌 插件: ${pluginInfo.name}\n📝 说明: ${inlineDef.description || "无"}`,
               },

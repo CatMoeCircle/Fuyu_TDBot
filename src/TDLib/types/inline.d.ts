@@ -119,6 +119,8 @@ export type InlineResult =
         id: string;
         /** 结果标题 */
         title: string;
+        /** 结果简介 */
+        description?: string;
         /** 完整消息内容 */
         message: TextOnlyMessageDSL;
     }
@@ -129,8 +131,10 @@ export type InlineResult =
         id: string;
         /** 图片 URL */
         photo_url: string;
-        /** 结果标题（可选） */
-        title?: string;
+        /** 结果标题 */
+        title: string;
+        /** 结果简介*/
+        description?: string;
         /** 完整消息内容 */
         message: TextOnlyMessageDSL | PhotoOnlyMessageDSL;
     }
@@ -156,6 +160,8 @@ export type InlineResult =
         id: string;
         /** 视频标题 */
         title: string;
+        /** 结果简介 */
+        description?: string;
         /** 视频 URL */
         video_url: string;
         /** 视频缩略图 URL（可选） */
