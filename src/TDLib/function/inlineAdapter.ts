@@ -60,6 +60,7 @@ export async function toTdInlineResult(
                     id: result.id,
                     title: result.title,
                     description: result.description,
+                    thumbnail_url: result.thumbnail_url,
                     input_message_content: messageContent,
                     ...(replyMarkup && { reply_markup: replyMarkup }),
                 };
