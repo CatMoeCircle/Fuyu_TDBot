@@ -1,0 +1,22 @@
+{
+  "configurations": [
+    {
+      "type": "node",
+      "name": "运行FuyuBot",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--import",
+        "data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))"
+      ],
+      "program": "${workspaceFolder}/src/index.ts",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**",
+        "**/node_modules/**"
+      ]
+    }
+  ]
+}
