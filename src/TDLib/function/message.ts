@@ -7,6 +7,7 @@ import type {
   editMessageText as Td$editMessageTextOriginal,
   editMessageMedia as Td$editMessageMediaOriginal,
   InputMessageContent$Input,
+  InputFile$Input,
   InputMessageReplyTo$Input,
   ButtonStyle as Td$ButtonStyle,
   inlineKeyboardButton,
@@ -569,6 +570,21 @@ export async function editMessageMedia(
  *
  */
 
+/** 将自定义的文件对象转换为 TDLib 的输入文件对象 */
+function toTdInputFile(file: { path?: string; id?: string }): InputFile$Input {
+  if (file.path !== undefined) {
+    return {
+      _: "inputFileLocal",
+      path: file.path,
+    };
+  }
+
+  return {
+    _: "inputFileRemote",
+    id: file.id,
+  };
+}
+
 /** 根据自有格式生成输入消息内容
  * @param client - TDLib 客户端实例
  * @param text - 消息文本
@@ -590,31 +606,15 @@ export async function buildInputMessageContent(
   if ("photo" in media) {
     input_message_content = {
       _: "inputMessagePhoto",
-      photo:
-        media.photo.path !== undefined
-          ? {
-            _: "inputFileLocal",
-            path: media.photo.path,
-          }
-          : {
-            _: "inputFileRemote",
-            id: media.photo.id,
-          },
+      photo: toTdInputFile(media.photo),
       thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
-            ? media.thumbnail.thumbnail.path !== undefined
-              ? {
-                _: "inputFileLocal",
-                path: media.thumbnail.thumbnail.path,
-              }
-              : media.thumbnail.thumbnail.url !== undefined
-                ? {
-                  _: "inputFileRemote",
-                  id: media.thumbnail.thumbnail.url,
-                }
-                : undefined
+            ? toTdInputFile({
+              path: media.thumbnail.thumbnail.path,
+              id: media.thumbnail.thumbnail.url,
+            })
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,
@@ -630,28 +630,17 @@ export async function buildInputMessageContent(
       has_spoiler: media.has_spoiler || false,
     };
   } else if ("video" in media) {
+    const inputVideo = toTdInputFile(media.video);
+
+    const inputCover =
+      media.cover !== undefined
+        ? toTdInputFile(media.cover)
+        : undefined;
+
     input_message_content = {
       _: "inputMessageVideo",
-      video:
-        media.video.path !== undefined
-          ? {
-            _: "inputFileLocal",
-            path: media.video.path,
-          }
-          : {
-            _: "inputFileRemote",
-            id: media.video.id,
-          },
-      cover:
-        media.cover?.path !== undefined
-          ? {
-            _: "inputFileLocal",
-            path: media.cover.path,
-          }
-          : {
-            _: "inputFileRemote",
-            id: media.cover?.id,
-          },
+      video: inputVideo,
+      ...(inputCover ? { cover: inputCover } : {}),
       duration: media.duration,
       width: media.width,
       height: media.height,
@@ -667,31 +656,15 @@ export async function buildInputMessageContent(
   } else if ("audio" in media) {
     input_message_content = {
       _: "inputMessageAudio",
-      audio:
-        media.audio.path !== undefined
-          ? {
-            _: "inputFileLocal",
-            path: media.audio.path,
-          }
-          : {
-            _: "inputFileRemote",
-            id: media.audio.id,
-          },
+      audio: toTdInputFile(media.audio),
       album_cover_thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.album_cover_thumbnail !== undefined
-            ? media.album_cover_thumbnail.thumbnail.path !== undefined
-              ? {
-                _: "inputFileLocal",
-                path: media.album_cover_thumbnail.thumbnail.path,
-              }
-              : media.album_cover_thumbnail.thumbnail.url !== undefined
-                ? {
-                  _: "inputFileRemote",
-                  id: media.album_cover_thumbnail.thumbnail.url,
-                }
-                : undefined
+            ? toTdInputFile({
+              path: media.album_cover_thumbnail.thumbnail.path,
+              id: media.album_cover_thumbnail.thumbnail.url,
+            })
             : undefined,
         width: media.album_cover_thumbnail?.width,
         height: media.album_cover_thumbnail?.height,
@@ -709,31 +682,15 @@ export async function buildInputMessageContent(
   } else if ("file" in media) {
     input_message_content = {
       _: "inputMessageDocument",
-      document:
-        media.file.path !== undefined
-          ? {
-            _: "inputFileLocal",
-            path: media.file.path,
-          }
-          : {
-            _: "inputFileRemote",
-            id: media.file.id,
-          },
+      document: toTdInputFile(media.file),
       thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
-            ? media.thumbnail.thumbnail.path !== undefined
-              ? {
-                _: "inputFileLocal",
-                path: media.thumbnail.thumbnail.path,
-              }
-              : media.thumbnail.thumbnail.url !== undefined
-                ? {
-                  _: "inputFileRemote",
-                  id: media.thumbnail.thumbnail.url,
-                }
-                : undefined
+            ? toTdInputFile({
+              path: media.thumbnail.thumbnail.path,
+              id: media.thumbnail.thumbnail.url,
+            })
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,
@@ -746,31 +703,15 @@ export async function buildInputMessageContent(
   } else if ("animation" in media) {
     input_message_content = {
       _: "inputMessageAnimation",
-      animation:
-        media.animation.path !== undefined
-          ? {
-            _: "inputFileLocal",
-            path: media.animation.path,
-          }
-          : {
-            _: "inputFileRemote",
-            id: media.animation.id,
-          },
+      animation: toTdInputFile(media.animation),
       thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
-            ? media.thumbnail.thumbnail.path !== undefined
-              ? {
-                _: "inputFileLocal",
-                path: media.thumbnail.thumbnail.path,
-              }
-              : media.thumbnail.thumbnail.url !== undefined
-                ? {
-                  _: "inputFileRemote",
-                  id: media.thumbnail.thumbnail.url,
-                }
-                : undefined
+            ? toTdInputFile({
+              path: media.thumbnail.thumbnail.path,
+              id: media.thumbnail.thumbnail.url,
+            })
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,
@@ -789,31 +730,15 @@ export async function buildInputMessageContent(
   } else if ("sticker" in media) {
     input_message_content = {
       _: "inputMessageSticker",
-      sticker:
-        media.sticker.path !== undefined
-          ? {
-            _: "inputFileLocal",
-            path: media.sticker.path,
-          }
-          : {
-            _: "inputFileRemote",
-            id: media.sticker.id,
-          },
+      sticker: toTdInputFile(media.sticker),
       thumbnail: {
         _: "inputThumbnail",
         thumbnail:
           media.thumbnail !== undefined
-            ? media.thumbnail.thumbnail.path !== undefined
-              ? {
-                _: "inputFileLocal",
-                path: media.thumbnail.thumbnail.path,
-              }
-              : media.thumbnail.thumbnail.url !== undefined
-                ? {
-                  _: "inputFileRemote",
-                  id: media.thumbnail.thumbnail.url,
-                }
-                : undefined
+            ? toTdInputFile({
+              path: media.thumbnail.thumbnail.path,
+              id: media.thumbnail.thumbnail.url,
+            })
             : undefined,
         width: media.thumbnail?.width,
         height: media.thumbnail?.height,

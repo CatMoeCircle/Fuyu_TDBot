@@ -121,6 +121,8 @@ export type InlineResult =
         title: string;
         /** 结果简介 */
         description?: string;
+        /** 结果缩略图 URL（可选） */
+        thumbnail_url?: string;
         /** 完整消息内容 */
         message: TextOnlyMessageDSL;
     }
@@ -163,7 +165,7 @@ export type InlineResult =
         /** 结果简介 */
         description?: string;
         /** 视频 URL */
-        video_url: string;
+        video_url?: string;
         /** 视频缩略图 URL（可选） */
         thumbnail_url?: string;
         /** 视频宽度（可选） */
