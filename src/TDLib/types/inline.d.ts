@@ -131,7 +131,7 @@ export type InlineResult =
         type: "photo";
         /** 结果唯一 ID */
         id: string;
-        /** 图片 URL */
+        /** 图片 URL / 可使用文件id,但在部分客户端中标题和简介不会显示 */
         photo_url: string;
         /** 结果标题 */
         title: string;
@@ -149,7 +149,7 @@ export type InlineResult =
         title: string;
         /** 执行者/艺术家 */
         performer: string;
-        /** 音频 URL */
+        /** 音频 URL / 可使用文件id,但在部分客户端中标题和简介不会显示 */
         audio_url: string;
         /** 音频时长（秒）*/
         duration?: number;
@@ -164,9 +164,9 @@ export type InlineResult =
         title: string;
         /** 结果简介 */
         description?: string;
-        /** 视频 URL */
+        /** 视频 URL / 可使用文件id,但在部分客户端中标题和简介不会显示 */
         video_url?: string;
-        /** 视频缩略图 URL（可选） */
+        /** 视频缩略图 URL（可选） 当video_url使用文件id时缩略图无效 */
         thumbnail_url?: string;
         /** 视频宽度（可选） */
         width?: number;
