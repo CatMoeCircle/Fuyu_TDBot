@@ -56,7 +56,7 @@ export async function getProxies(client: Client) {
     });
     return proxies;
   } catch (error) {
-    logger.error("getProxies Error:", error);
+    logger.error(error, "getProxies Error:");
     throw new Error("获取代理列表失败", { cause: error });
   }
 }
@@ -114,7 +114,7 @@ export async function addProxy(
 
     return result;
   } catch (error) {
-    logger.error("addProxy Error:", error);
+    logger.error(error, "addProxy Error:");
     throw new Error("添加代理失败", { cause: error });
   }
 }
@@ -135,7 +135,7 @@ export async function removeProxy(client: Client, proxy_id: number) {
     });
     return result;
   } catch (error) {
-    logger.error("removeProxy Error:", error);
+    logger.error(error, "removeProxy Error:");
     throw new Error("移除代理失败", { cause: error });
   }
 }
@@ -173,7 +173,7 @@ export async function editProxy(
     });
     return result;
   } catch (error) {
-    logger.error("editProxy Error:", error);
+    logger.error(error, "editProxy Error:");
     throw new Error("编辑代理失败", { cause: error });
   }
 }
@@ -193,7 +193,7 @@ export async function enableProxy(client: Client, proxy_id: number) {
     });
     return result;
   } catch (error) {
-    logger.error("enableProxy Error:", error);
+    logger.error(error, "enableProxy Error:");
     throw new Error("启用代理失败", { cause: error });
   }
 }
@@ -211,7 +211,7 @@ export async function disableProxy(client: Client) {
     });
     return result;
   } catch (error) {
-    logger.error("disableProxy Error:", error);
+    logger.error(error, "disableProxy Error:");
     throw new Error("禁用代理失败", { cause: error });
   }
 }
@@ -240,7 +240,7 @@ export async function pingProxy(client: Client, server: string,
     });
     return result;
   } catch (error) {
-    logger.error("pingProxy Error:", error);
+    logger.error(error, "pingProxy Error:");
     return null;
   }
 }
@@ -278,7 +278,7 @@ export async function testProxy(
     });
     return result;
   } catch (error) {
-    logger.error("testProxy Error:", error);
+    logger.error(error, "testProxy Error:");
     throw new Error("测试代理失败", { cause: error });
   }
 }
@@ -311,7 +311,7 @@ export async function getProxyLink(client: Client, proxy_id: number) {
     });
     return result;
   } catch (error) {
-    logger.error("getProxyLink Error:", error);
+    logger.error(error, "getProxyLink Error:");
     throw new Error("获取代理链接失败", { cause: error });
   }
 }

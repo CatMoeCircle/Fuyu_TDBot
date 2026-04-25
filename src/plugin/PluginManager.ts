@@ -50,9 +50,8 @@ export class PluginManager {
             try {
               await def.handler();
             } catch (e) {
-              logger.error(
+              logger.error(e,
                 `[插件管理] 插件 ${pluginName} run ${runName} immediate 执行出错:`,
-                e
               );
             }
           })();
@@ -66,9 +65,8 @@ export class PluginManager {
                 try {
                   await def.handler();
                 } catch (e) {
-                  logger.error(
-                    `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`,
-                    e
+                  logger.error(e,
+                    `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`
                   );
                 }
               },
@@ -77,28 +75,25 @@ export class PluginManager {
             );
             timers.set(runName, job);
           } catch (e) {
-            logger.error(
-              `[插件管理] 插件 ${pluginName} run ${runName} cron 注册失败:`,
-              e
-            );
+            logger.error(e,
+              `[插件管理] 插件 ${pluginName} run ${runName} cron 注册失败:`
+            )
           }
         } else if (def.intervalMs && def.intervalMs > 0) {
           const t = setInterval(async () => {
             try {
               await def.handler();
             } catch (e) {
-              logger.error(
-                `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`,
-                e
+              logger.error(e,
+                `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`
               );
             }
           }, def.intervalMs);
           timers.set(runName, t);
         }
       } catch (e) {
-        logger.error(
-          `[插件管理] 注册插件 ${pluginName} run ${runName} 出错:`,
-          e
+        logger.error(e,
+          `[插件管理] 注册插件 ${pluginName} run ${runName} 出错:`
         );
       }
     }
@@ -120,7 +115,7 @@ export class PluginManager {
           clearInterval(t as NodeJS.Timeout);
         }
       } catch (e) {
-        logger.debug(`[插件管理] 清理定时器出错:`, e);
+        logger.debug(e, `[插件管理] 清理定时器出错:`);
       }
     }
     this.pluginRunTimers.delete(pluginName);
@@ -139,7 +134,7 @@ export class PluginManager {
     try {
       await Promise.resolve(def.handler());
     } catch (e) {
-      logger.error(`[插件管理] 手动触发 ${pluginName}.${runName} 出错:`, e);
+      logger.error(e, `[插件管理] 手动触发 ${pluginName}.${runName} 出错:`);
       throw e;
     }
   }
@@ -190,9 +185,9 @@ export class PluginManager {
 
     // 设置更新处理器
     client.on("update", (update) => {
-      logger.debug(`[插件管理] 收到更新: ${JSON.stringify(update)}`);
+      logger.debug(update, `[插件管理] 收到更新:`);
       this.handleUpdate(update).catch((error) => {
-        logger.error("[插件管理] 处理更新时发生错误:", error);
+        logger.error(error, "[插件管理] 处理更新时发生错误:");
       });
     });
 
@@ -235,7 +230,7 @@ export class PluginManager {
           await this.loadPlugin(modulePath, client);
         }
       } catch (e) {
-        logger.error(`[插件管理] 加载插件 ${item} 出错:`, e);
+        logger.error(e, `[插件管理] 加载插件 ${item} 出错:`);
       }
     }
   }
@@ -292,7 +287,7 @@ export class PluginManager {
           return;
         }
       }
-      logger.error(`[插件管理] 导入插件模块 ${modulePath} 失败:`, impErr);
+      logger.error(impErr, `[插件管理] 导入插件模块 ${modulePath} 失败:`);
       return;
     }
 
@@ -317,7 +312,7 @@ export class PluginManager {
       ) => BasePlugin;
       pluginInstance = new ctor(client, this.createPluginApi(modulePath));
     } catch (instErr: unknown) {
-      logger.error(`[插件管理] 实例化插件 ${modulePath} 失败:`, instErr);
+      logger.error(instErr, `[插件管理] 实例化插件 ${modulePath} 失败:`);
       return;
     }
 
@@ -381,10 +376,10 @@ export class PluginManager {
           return;
         }
       }
-    } catch (configError) {
+    } catch (e) {
       logger.error(
-        `[插件管理] 获取 bot 配置失败，允许插件 ${pluginInstance.name} 加载:`,
-        configError
+        e,
+        `[插件管理] 获取 bot 配置失败，允许插件 ${pluginInstance.name} 加载:`
       );
     }
 
@@ -399,10 +394,9 @@ export class PluginManager {
           return;
         }
       }
-    } catch (configError) {
-      logger.debug(
+    } catch (e) {
+      logger.debug(e,
         `[插件管理] 获取插件配置失败，允许插件 ${pluginInstance.name} 加载:`,
-        configError
       );
     }
 
@@ -438,8 +432,8 @@ export class PluginManager {
       this.setupPluginRuns(pluginInstance.name, pluginInstance);
     } catch (e) {
       logger.error(
-        `[插件管理] 设置插件 ${pluginInstance.name} runHandlers 失败:`,
-        e
+        e,
+        `[插件管理] 设置插件 ${pluginInstance.name} runHandlers 失败:`
       );
     }
 
@@ -450,15 +444,15 @@ export class PluginManager {
           await pluginInstance.onLoad();
         } catch (err) {
           logger.error(
-            `[插件管理] 插件 ${pluginInstance.name} onLoad 执行出错:`,
-            err
+            err,
+            `[插件管理] 插件 ${pluginInstance.name} onLoad 执行出错:`
           );
         }
       }
     } catch (e) {
       logger.error(
-        `[插件管理] 插件 ${pluginInstance.name} onLoad 执行出错:`,
-        e
+        e,
+        `[插件管理] 插件 ${pluginInstance.name} onLoad 执行出错:`
       );
     }
   }
@@ -484,7 +478,7 @@ export class PluginManager {
       logger.info(`[插件管理] 插件 ${pluginName} 卸载成功`);
       return true;
     } catch (e) {
-      logger.error(`[插件管理] 插件 ${pluginName} 销毁出错:`, e);
+      logger.error(e, `[插件管理] 插件 ${pluginName} 销毁出错:`);
       return false;
     }
   }
@@ -553,7 +547,7 @@ export class PluginManager {
           return false;
         }
       } catch (e) {
-        logger.error(`[插件管理] 卸载插件 ${pluginName} 出错:`, e);
+        logger.error(e, `[插件管理] 卸载插件 ${pluginName} 出错:`);
         return false;
       }
     } else {
@@ -579,8 +573,8 @@ export class PluginManager {
       }
     } catch (e) {
       logger.error(
+        e,
         `[插件管理] ${pluginInfo ? "重载" : "加载"}插件 ${pluginName} 出错:`,
-        e
       );
       return false;
     }
@@ -611,7 +605,7 @@ export class PluginManager {
         return false;
       }
     } catch (e) {
-      logger.error(`[插件管理] 启用插件 ${pluginName} 出错:`, e);
+      logger.error(e, `[插件管理] 启用插件 ${pluginName} 出错:`);
       return false;
     }
   }
@@ -651,7 +645,7 @@ export class PluginManager {
         return false;
       }
     } catch (e) {
-      logger.error(`[插件管理] 禁用插件 ${pluginName} 出错:`, e);
+      logger.error(e, `[插件管理] 禁用插件 ${pluginName} 出错:`);
       return false;
     }
   }
@@ -707,7 +701,7 @@ export class PluginManager {
           fs.unlinkSync(foundPath);
         }
       } catch (e) {
-        logger.error(`[插件管理] 删除插件路径 ${foundPath} 失败:`, e);
+        logger.error(e, `[插件管理] 删除插件路径 ${foundPath} 失败:`);
         return false;
       }
 
@@ -724,13 +718,13 @@ export class PluginManager {
           }
         }
       } catch (e) {
-        logger.debug(`[插件管理] 更新插件配置时出错（可忽略）:`, e);
+        logger.debug(e, `[插件管理] 更新插件配置时出错（可忽略）:`);
       }
 
       logger.info(`[插件管理] 已删除插件 ${pluginName} (路径: ${foundPath})`);
       return true;
     } catch (e) {
-      logger.error(`[插件管理] 删除插件 ${pluginName} 出错:`, e);
+      logger.error(e, `[插件管理] 删除插件 ${pluginName} 出错:`);
       return false;
     }
   }
@@ -756,7 +750,7 @@ export class PluginManager {
 
       return "private"; // 默认返回私聊
     } catch (e) {
-      logger.error(`[插件管理] 获取聊天类型失败:`, e);
+      logger.error(e, `[插件管理] 获取聊天类型失败:`);
       return "private";
     }
   }
@@ -786,7 +780,7 @@ export class PluginManager {
 
       return "user";
     } catch (e) {
-      logger.error(`[插件管理] 获取用户权限失败:`, e);
+      logger.error(e, `[插件管理] 获取用户权限失败:`);
       return "user";
     }
   }
@@ -803,7 +797,7 @@ export class PluginManager {
       }
       return false;
     } catch (e) {
-      logger.debug(`[插件管理] 获取账户类型失败:`, e);
+      logger.debug(e, `[插件管理] 获取账户类型失败:`);
       return false;
     }
   }
@@ -820,7 +814,7 @@ export class PluginManager {
       }
       return null;
     } catch (e) {
-      logger.debug(`[插件管理] 获取自己的 ID 失败:`, e);
+      logger.debug(e, `[插件管理] 获取自己的 ID 失败:`);
       return null;
     }
   }
@@ -857,7 +851,7 @@ export class PluginManager {
         );
       }
     } catch (e) {
-      logger.debug(`[插件管理] 读取命令权限配置失败:`, e);
+      logger.debug(e, `[插件管理] 读取命令权限配置失败:`);
     }
 
     const scopeArray = Array.isArray(scope) ? scope : [scope];
@@ -961,8 +955,8 @@ export class PluginManager {
               await typedHandler(update);
             } catch (err) {
               logger.error(
-                `[插件管理] 插件 ${pluginInfo.name} 更新处理器执行出错:`,
-                err
+                err,
+                `[插件管理] 插件 ${pluginInfo.name} 更新处理器执行出错:`
               );
             }
           })()
@@ -1025,10 +1019,10 @@ export class PluginManager {
       ) {
         prefixes = configData.PREFIXES;
       }
-    } catch (configError) {
+    } catch (e) {
       logger.debug(
+        e,
         `[插件管理] 获取命令前缀配置失败，使用默认前缀:`,
-        configError
       );
     }
 
@@ -1060,16 +1054,17 @@ export class PluginManager {
             return;
           }
         }
-      } catch (configError) {
+      } catch (e) {
+
         logger.warn(
+          e,
           `[插件管理] 获取 me 配置失败,忽略带 @ 的命令:`,
-          configError
         );
         return;
       }
     }
 
-    logger.debug(`[插件管理] 处理命令: ${prefix}${commandName}`, args);
+    logger.debug(args, `[插件管理] 处理命令: ${prefix}${commandName}`);
 
     if (!this.client) {
       logger.error(`[插件管理] Client 未初始化`);
@@ -1112,12 +1107,12 @@ export class PluginManager {
 
         const p = Promise.resolve(commandDef.handler(message, args)).catch(
           (e: unknown) => {
-            logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
+            logger.error(e, `[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`);
           }
         );
         tasks.push(p);
       } catch (e) {
-        logger.error(`[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`, e);
+        logger.error(e, `[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`);
       }
     }
 
@@ -1183,7 +1178,7 @@ export class PluginManager {
       role,
     };
 
-    logger.debug(`[插件管理] InlineContext:`, ctx);
+    logger.debug(ctx, `[插件管理] InlineContext:`);
 
     // 第二步：如果查询为空，列出所有可用工具
     if (!queryText.trim()) {
@@ -1232,8 +1227,8 @@ export class PluginManager {
             });
           } catch (e) {
             logger.error(
+              e,
               `[插件管理] 生成工具列表失败: ${pluginInfo.name}.${handlerName}`,
-              e
             );
           }
         }
@@ -1250,7 +1245,7 @@ export class PluginManager {
           cache_time: 0,
         })
         .catch((e) => {
-          logger.error(`[插件管理] 返回内联工具列表失败:`, e);
+          logger.error(e, `[插件管理] 返回内联工具列表失败:`);
         });
 
       return;
@@ -1315,8 +1310,8 @@ export class PluginManager {
           });
         } catch (e) {
           logger.error(
-            `[插件管理] matcher 执行失败: ${pluginInfo.name}.${handlerName}`,
-            e
+            e,
+            `[插件管理] matcher 执行失败: ${pluginInfo.name}.${handlerName}`
           );
         }
       }

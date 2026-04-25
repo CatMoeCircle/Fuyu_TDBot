@@ -147,7 +147,7 @@ export async function toTdInlineResult(
                 return null;
         }
     } catch (error) {
-        logger.error(`[Adapter] 转换 InlineResult 失败:`, error);
+        logger.error(error, `[Adapter] 转换 InlineResult 失败:`);
         return null;
     }
 }

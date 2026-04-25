@@ -115,9 +115,9 @@ export async function sendMessage(
   } catch (error) {
     const err = error as Error;
     if (err.message.includes("发送消息超时")) {
-      logger.warn(`sendMessage: ${err.message}`);
+      logger.warn(err, `sendMessage: ${err.message}`);
     } else {
-      logger.error("sendMessage: 发送消息失败", error);
+      logger.error(err, `sendMessage: 发送消息失败`);
     }
     throw err;
   }
@@ -232,8 +232,8 @@ export async function sendMessageAlbum(
   } catch (error) {
     const err = error as Error;
     if (err.message.includes("发送消息超时"))
-      logger.warn(`sendMessageAlbum: ${err.message}`, chat_id);
-    else logger.error("sendMessageAlbum: 发送消息失败", err);
+      logger.warn(err, `sendMessageAlbum: ${err.message}`);
+    else logger.error(err, `sendMessageAlbum: 发送消息失败`);
 
     throw err;
   }
@@ -257,7 +257,7 @@ export async function deleteMessage(
     .filter((id) => Number.isFinite(id));
 
   if (ids.length === 0) {
-    logger.error("deleteMessage: 无效消息ID", message_ids);
+    logger.error(`deleteMessage: 无效消息ID (${message_ids})`);
     return;
   }
   try {
@@ -267,7 +267,8 @@ export async function deleteMessage(
       message_ids: ids,
       revoke,
     });
-  } catch {
+  } catch (error) {
+    logger.error(error, `deleteMessage: 删除消息失败`);
     for (const id of ids) {
       try {
         await client.invoke({
@@ -277,7 +278,7 @@ export async function deleteMessage(
           revoke,
         });
       } catch (err) {
-        logger.warn("deleteMessage: 删除失败", err, chat_id, id);
+        logger.warn(err, `deleteMessage: 删除失败: chat_id ${chat_id}, message_id ${id}`);
       }
       // 延迟 1s，防止频繁请求
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -374,14 +375,14 @@ export async function editMessageCaption(
               continue;
             }
 
-            logger.error("editMessageCaption: 重试编辑消息失败", err2);
+            logger.error(err2, `editMessageCaption: 重试编辑消息失败`);
             throw new Error("编辑消息失败", { cause: err2 });
           }
         }
       }
     }
 
-    logger.error("editMessageCaption: 编辑消息失败", error);
+    logger.error(error, `editMessageCaption: 编辑消息失败`);
     throw new Error("编辑消息失败", { cause: error });
   }
 }
@@ -481,14 +482,14 @@ export async function editMessageText(
               continue;
             }
 
-            logger.error("editMessage: 重试编辑消息失败", err2);
+            logger.error(err2, "editMessage: 重试编辑消息失败",);
             throw new Error("编辑消息失败", { cause: err2 });
           }
         }
       }
     }
 
-    logger.error("editMessage: 编辑消息失败", error);
+    logger.error(error, `editMessage: 编辑消息失败`);
     throw new Error("编辑消息失败", { cause: error });
   }
 }
@@ -552,14 +553,14 @@ export async function editMessageMedia(
             });
             return retryResult;
           } catch (err2) {
-            logger.error("editMessageMedia: 重试编辑消息失败", err2);
+            logger.error(err2, `editMessageMedia: 重试编辑消息失败`);
             throw new Error("编辑消息失败", { cause: err2 });
           }
         }
       }
     }
 
-    logger.error("editMessageMedia: 编辑消息失败", error);
+    logger.error(error, `editMessageMedia: 编辑消息失败`);
     throw new Error("编辑消息失败", { cause: error });
   }
 }

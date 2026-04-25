@@ -73,8 +73,7 @@ export class ClientManager {
         }
         if (me.usernames && me.type._ === "userTypeRegular") {
           logger.info(
-            `用户 ${me.first_name}${me.last_name} 已登录: (@${
-              me.usernames.active_usernames[0] || null
+            `用户 ${me.first_name}${me.last_name} 已登录: (@${me.usernames.active_usernames[0] || null
             } - ID:${me.id})`
           );
           await upsertConfig("bot", {
@@ -147,7 +146,7 @@ export class ClientManager {
           if (err?.message === "INPUT_TIMEOUT") {
             logger.warn(`验证码输入已超时 (${timeoutSec}s)，请重试`);
           } else {
-            logger.error("输入验证码时出错：", err);
+            logger.error(err, "输入验证码时出错：");
           }
         }
       }
@@ -167,7 +166,7 @@ export class ClientManager {
             password: passwordStr,
           });
         } catch (err: any) {
-          logger.error("输入密码时出错：", err);
+          logger.error(err, "输入密码时出错：");
         }
       }
       if (
@@ -200,8 +199,7 @@ export class ClientManager {
           }
           if (me.usernames && me.type._ === "userTypeRegular") {
             logger.info(
-              `用户 ${me.first_name}${me.last_name} 已登录: (@${
-                me.usernames.active_usernames[0] || null
+              `用户 ${me.first_name}${me.last_name} 已登录: (@${me.usernames.active_usernames[0] || null
               } - ID:${me.id})`
             );
             await upsertConfig("bot", {

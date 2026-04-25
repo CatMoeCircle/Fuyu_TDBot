@@ -144,9 +144,8 @@ async function handleListPlugins(
     message += `*🔌 插件 (${plugins.length}个):*\n`;
     plugins.forEach((plugin, index) => {
       const status = "✅"; // 已加载状态
-      message += `${index + 1}. ${status} *${plugin.name}* v${
-        plugin.version
-      }\n`;
+      message += `${index + 1}. ${status} *${plugin.name}* v${plugin.version
+        }\n`;
       message += `   📝 ${plugin.description}\n`;
       message += `   🏷️ 类型: ${plugin.instance.type}\n\n`;
     });
@@ -157,7 +156,7 @@ async function handleListPlugins(
       text: message,
     });
   } catch (error) {
-    logger.error("获取插件列表时出错:", error);
+    logger.error(error, "获取插件列表时出错:");
     await sendMessage(client, chatId, {
       text: "❌ *获取插件列表时发生错误*\n\n请稍后重试。",
     });
@@ -252,7 +251,7 @@ async function handlePluginInfo(
       text: `❌ *插件未找到*\n\n未找到名为 "${pluginName}" 的插件或命令。\n\n使用 \`/plugin list\` 查看所有可用的插件。`,
     });
   } catch (error) {
-    logger.error(`获取插件 ${pluginName} 信息时出错:`, error);
+    logger.error(error, `获取插件 ${pluginName} 信息时出错:`);
     await sendMessage(client, chatId, {
       text: "❌ *获取插件信息时发生错误*\n\n请稍后重试。",
     });
@@ -301,7 +300,7 @@ async function handleEnablePlugin(
           });
         }
       } catch (scanError) {
-        logger.error(`加载插件时出错:`, scanError);
+        logger.error(scanError, `加载插件时出错:`);
         await sendMessage(client, chatId, {
           text: `⚠️ *插件启用成功但加载失败*\n\n插件 "${pluginName}" 已从禁用列表中移除，但加载时遇到问题。请使用 \`/plugin reload ${pluginName}\` 手动重载。`,
         });
@@ -312,7 +311,7 @@ async function handleEnablePlugin(
       });
     }
   } catch (error) {
-    logger.error(`启用插件 ${pluginName} 时出错:`, error);
+    logger.error(error, `启用插件 ${pluginName} 时出错:`);
     await sendMessage(client, chatId, {
       text: "❌ *启用插件时发生错误*\n\n请稍后重试。",
     });
@@ -358,7 +357,7 @@ async function handleDisablePlugin(
       });
     }
   } catch (error) {
-    logger.error(`禁用插件 ${pluginName} 时出错:`, error);
+    logger.error(error, `禁用插件 ${pluginName} 时出错:`);
     await sendMessage(client, chatId, {
       text: "❌ *禁用插件时发生错误*\n\n请稍后重试。",
     });
@@ -399,7 +398,7 @@ async function handleReloadPlugin(
       });
     }
   } catch (error) {
-    logger.error(`重载插件 ${pluginName} 时出错:`, error);
+    logger.error(error, `重载插件 ${pluginName} 时出错:`);
     await sendMessage(client, chatId, {
       text: `❌ *重载插件时发生错误*\n\n插件 "${pluginName}" 重载失败。\n\n错误信息已记录到日志中。`,
     });
@@ -440,7 +439,7 @@ async function handleDeletePlugin(
       });
     }
   } catch (error) {
-    logger.error(`删除插件 ${pluginName} 时出错:`, error);
+    logger.error(error, `删除插件 ${pluginName} 时出错:`);
     await sendMessage(client, chatId, {
       text: `❌ *删除插件时发生错误*\n\n插件 "${pluginName}" 删除失败。错误信息已记录到日志中。`,
     });
@@ -481,7 +480,7 @@ async function handleListDisabledPlugins(client: Client, chatId: number) {
         `\n\n💡 *提示：* 使用 \`/plugin enable <插件名>\` 来启用插件`,
     });
   } catch (error) {
-    logger.error("获取禁用插件列表时出错:", error);
+    logger.error(error, "获取禁用插件列表时出错:");
     await sendMessage(client, chatId, {
       text: "❌ *获取禁用插件列表时发生错误*\n\n请稍后重试。",
     });

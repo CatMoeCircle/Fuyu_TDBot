@@ -66,7 +66,7 @@ const initPromise = (async () => {
     db.data.configs ||= {};
     await ensureAdminConfig();
   } catch (err) {
-    logger.error("Database init failed:", err);
+    logger.error(err, "Database init failed:");
   }
 })();
 

@@ -128,15 +128,12 @@ async function handleListConfigs(client: Client, chatId: number) {
     // 配置信息
     if (configData) {
       message += "⌨️ **配置 (config):**\n";
-      message += `• 命令前缀: \`\`\`\n ${
-        configData.PREFIXES?.join(" ") || "未设置"
-      }\n\`\`\`\n`;
-      message += `• 自定义帮助文本: ${
-        configData.cmd?.help ? "已设置 (使用 /help 查看)" : "未设置"
-      }\n`;
-      message += `• 自定义start文本: ${
-        configData.cmd?.start ? "已设置 (使用 /start 查看)" : "未设置"
-      }\n`;
+      message += `• 命令前缀: \`\`\`\n ${configData.PREFIXES?.join(" ") || "未设置"
+        }\n\`\`\`\n`;
+      message += `• 自定义帮助文本: ${configData.cmd?.help ? "已设置 (使用 /help 查看)" : "未设置"
+        }\n`;
+      message += `• 自定义start文本: ${configData.cmd?.start ? "已设置 (使用 /start 查看)" : "未设置"
+        }\n`;
 
       // 显示命令权限覆盖
       if (
@@ -163,7 +160,7 @@ async function handleListConfigs(client: Client, chatId: number) {
       text: message,
     });
   } catch (error) {
-    logger.error("获取配置列表时出错:", error);
+    logger.error(error, "获取配置列表时出错:");
     await sendMessage(client, chatId, {
       text: "❌ **获取配置列表时发生错误**\n\n请稍后重试。",
     });
@@ -190,12 +187,10 @@ async function handleGetConfig(client: Client, chatId: number) {
     // 显示配置
     message += `⌨️ **配置:**\n`;
     message += `• 命令前缀: \`${config.PREFIXES?.join("` `") || "未设置"}\`\n`;
-    message += `• 自定义帮助文本: ${
-      config.cmd?.help ? "已设置 (使用 /help 查看)" : "未设置"
-    }\n`;
-    message += `• 自定义start文本: ${
-      config.cmd?.start ? "已设置 (使用 /start 查看)" : "未设置"
-    }\n`;
+    message += `• 自定义帮助文本: ${config.cmd?.help ? "已设置 (使用 /help 查看)" : "未设置"
+      }\n`;
+    message += `• 自定义start文本: ${config.cmd?.start ? "已设置 (使用 /start 查看)" : "未设置"
+      }\n`;
 
     // 显示命令权限覆盖详情
     if (
@@ -237,7 +232,7 @@ async function handleGetConfig(client: Client, chatId: number) {
       text: message,
     });
   } catch (error) {
-    logger.error(`获取配置时出错:`, error);
+    logger.error(error, "获取配置列表时出错:");
     await sendMessage(client, chatId, {
       text: "❌ **获取配置时发生错误**\n\n请稍后重试。",
     });
@@ -341,7 +336,7 @@ async function handleSetConfig(
 
     logger.info(`配置已更新: config.${field} = ${JSON.stringify(parsedValue)}`);
   } catch (error) {
-    logger.error(`设置配置 config.${field} 时出错:`, error);
+    logger.error(error, `设置配置 config.${field} 时出错:`);
     await sendMessage(client, chatId, {
       text: "❌ **设置配置时发生错误**\n\n请检查参数格式或稍后重试。",
     });
@@ -421,7 +416,7 @@ async function handleDeleteConfig(
       logger.info(`配置已删除: config.${field}`);
     }
   } catch (error) {
-    logger.error(`删除配置 config.${field} 时出错:`, error);
+    logger.error(error, `删除配置 config.${field} 时出错:`);
     await sendMessage(client, chatId, {
       text: "❌ **删除配置时发生错误**\n\n请稍后重试。",
     });
@@ -530,8 +525,7 @@ async function handleSetPermission(
       text:
         `✅ **命令权限设置成功**\n\n` +
         `命令: \`${commandName}\`\n` +
-        `场景: ${scopeDisplay} (\`${
-          Array.isArray(scope) ? scope.join(",") : scope
+        `场景: ${scopeDisplay} (\`${Array.isArray(scope) ? scope.join(",") : scope
         }\`)\n` +
         `权限: ${permissionDesc[permission]} (\`${permission}\`)\n\n` +
         `💡 **提示:** 这些设置将覆盖命令的默认权限设置`,
@@ -543,7 +537,7 @@ async function handleSetPermission(
       )}, permission=${permission}`
     );
   } catch (error) {
-    logger.error(`设置命令权限时出错:`, error);
+    logger.error(error, "设置命令权限时发生错误:");
     await sendMessage(client, chatId, {
       text: "❌ **设置命令权限时发生错误**\n\n请稍后重试。",
     });

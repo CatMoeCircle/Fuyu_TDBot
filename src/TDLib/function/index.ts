@@ -75,13 +75,12 @@ export async function restrictUser(
     });
   } catch (error: unknown) {
     logger.debug(
-      "限制用户权限时出错:",
-      `param ${chat_id}, ${member_id}`,
-      error
+      error,
+      `限制用户权限时出错: param ${chat_id}, ${member_id}`
     );
     throw new Error(
       `在 "${chat_id}" 限制用户 "${JSON.stringify(member_id)}"失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -119,10 +118,10 @@ export async function setUserAsMember(
       },
     });
   } catch (error) {
-    logger.debug("setUserAsMember", `param ${chat_id}, ${member_id}`, error);
+    logger.debug(error, `setUserAsMember param ${chat_id}, ${member_id}`);
     throw new Error(
       `在 "${chat_id}" 设置用户 "${JSON.stringify(member_id)}" 为无限制成员失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -177,13 +176,12 @@ export async function setUserRestricted(
     });
   } catch (error: unknown) {
     logger.debug(
-      "设置用户权限时出错:",
-      `param ${chat_id}, ${member_id}`,
-      error
+      error,
+      `设置用户权限时出错: param ${chat_id}, ${member_id}`
     );
     throw new Error(
       `在 "${chat_id}" 设置用户 "${JSON.stringify(member_id)}" 权限失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -244,10 +242,10 @@ export async function downloadFile(
     });
     return file;
   } catch (error) {
-    logger.debug("下载文件时出错:", `param ${file_id}, ${type}`, error);
+    logger.debug(error, `下载 ${file_id} 失败: ${type}`);
     throw new Error(
       `下载 ${file_id} 失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -266,10 +264,10 @@ export async function deleteFile(client: Client, file_id: number) {
     });
     return;
   } catch (error) {
-    logger.debug("删除文件时出错:", `param ${file_id}`, error);
+    logger.debug(error, `删除文件时出错: param ${file_id}`);
     throw new Error(
       `删除 ${file_id} 失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -313,13 +311,12 @@ export async function banUser(
     return;
   } catch (error) {
     logger.debug(
-      "setChatMemberStatus",
-      `param ${chat_id}, ${member_id}, ${banned_until_date}`,
-      error
+      error,
+      `在 "${chat_id}" 封禁用户 "${member_id}" 失败: ${banned_until_date}`
     );
     throw new Error(
       `在 "${chat_id}" 封禁用户 "${member_id}" 失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -358,13 +355,12 @@ export async function answerCallbackQuery(
     return;
   } catch (error) {
     logger.debug(
-      "回复回调查询时出错:",
-      `param ${query_id}, ${options.text}, ${options.show_alert}, ${options.url}, ${options.cache_time}`,
-      error
+      error,
+      `回复回调查询 "${query_id}" 失败: ${options.text}, ${options.show_alert}, ${options.url}, ${options.cache_time}`
     );
     throw new Error(
       `回复回调查询 "${query_id}" 失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -407,10 +403,10 @@ export async function isMeAdmin(
 
     return false;
   } catch (error: unknown) {
-    logger.error("isMeAdmin error", `chat_id ${chat_id}`, error);
+    logger.error(error, `isMeAdmin error: chat_id ${chat_id}`);
     throw new Error(
       `检查自己在 ${chat_id} 是否为管理员失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -469,10 +465,10 @@ export async function isUserAdmin(
     // 既不是创建者也不是管理员
     return false;
   } catch (error) {
-    logger.debug("Error checking admin status:", error);
+    logger.debug(error, `检查 ${chat_id} 中用户 ${member_id} 的管理员状态失败`);
     throw new Error(
       `检查 ${chat_id} 中用户 ${member_id} 的管理员状态失败: ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -581,7 +577,7 @@ export async function chatoruserMdown(
 
       return `[${chat.title}](id:${sender_id.chat_id})`;
     } catch (error) {
-      logger.error("获取聊天信息时出错:", error);
+      logger.error(error, `获取聊天信息时出错: param ${sender_id.chat_id}`);
       // 发生错误时回退到使用 openmessage
       return `[${sender_id.chat_id}]`;
     }
@@ -647,7 +643,7 @@ export async function parseTextEntities(
     });
     return result;
   } catch (error) {
-    logger.warn("解析文本实体时出错:", error);
+    logger.warn(error, "解析文本实体时出错:");
     return {
       _: "formattedText",
       text: text,

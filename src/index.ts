@@ -22,7 +22,7 @@ async function main() {
         try {
           await pluginManager.unloadPlugin(plugin.name);
         } catch (error) {
-          logger.error(`卸载插件 ${plugin.name} 时出错:`, error);
+          logger.error(error, `卸载插件 ${plugin.name} 时出错:`);
         }
       }
       await client.close();
@@ -31,13 +31,13 @@ async function main() {
       process.exit(0);
     });
   } catch (error) {
-    logger.error("Bot启动失败:", error);
+    logger.error(error, "Bot启动失败:");
     process.exit(1);
   }
 }
 
 // 启动应用程序
 main().catch((error) => {
-  logger.error("未捕获的错误:", error);
+  logger.error(error, "未捕获的错误:");
   process.exit(1);
 });

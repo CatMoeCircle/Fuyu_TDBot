@@ -62,11 +62,11 @@ function userinfo(user: Td$user) {
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ");
   const username =
     user.usernames?.active_usernames &&
-    user.usernames.active_usernames.length > 0
+      user.usernames.active_usernames.length > 0
       ? user.usernames.active_usernames.map((u) => `@${u}`).join("、")
       : user.usernames?.editable_username
-      ? `@${user.usernames.editable_username}`
-      : "无";
+        ? `@${user.usernames.editable_username}`
+        : "无";
   const premium = user.is_premium ? "⭐ Premium" : "";
   const contact = user.is_contact
     ? user.is_mutual_contact
@@ -113,8 +113,8 @@ function messageinfo(message: Td$message) {
     message.sender_id?._ === "messageSenderUser"
       ? `👤 ${message.sender_id.user_id}`
       : message.sender_id?._ === "messageSenderChat"
-      ? `💬 ${message.sender_id.chat_id}`
-      : `❓ 未知`;
+        ? `💬 ${message.sender_id.chat_id}`
+        : `❓ 未知`;
 
   // 消息状态
   const pinned = message.is_pinned ? "📌 置顶" : "";
@@ -146,9 +146,8 @@ function messageinfo(message: Td$message) {
 ├─ 对话 ID：\`${message.chat_id}\`
 ├─ 发送者：${sender}
 ├─ 类型：${contentType}
-├─ 发送时间：${date}${editDate ? `\n├─ 编辑时间：${editDate}` : ""}${
-    badges ? `\n└─ 标签：${badges}` : ""
-  }`;
+├─ 发送时间：${date}${editDate ? `\n├─ 编辑时间：${editDate}` : ""}${badges ? `\n└─ 标签：${badges}` : ""
+    }`;
 }
 
 function chatinfo(chat: Td$chat) {
@@ -309,6 +308,6 @@ export default async function getinfo(
       text,
     });
   } catch (e) {
-    logger.error("发送消息失败", e);
+    logger.error(e, "执行 getinfo 命令时出错:");
   }
 }

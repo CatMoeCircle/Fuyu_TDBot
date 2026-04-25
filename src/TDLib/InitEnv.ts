@@ -104,7 +104,7 @@ export default async function initEnv() {
       fs.rmSync(tempDir, { recursive: true, force: true });
       logger.info("临时文件已清理");
     } catch (error) {
-      logger.error("下载安卓版 TDLib 失败:", error);
+      logger.error(error, "下载Linux TDLib 库文件失败:");
       throw error;
     }
   }
@@ -313,9 +313,8 @@ export default async function initEnv() {
       existing[key] = val;
     }
 
-    const content = `TG_API_ID=${existing["TG_API_ID"] || ""}\nTG_API_HASH=${
-      existing["TG_API_HASH"] || ""
-    }\nMONGODB_URL=${existing["MONGODB_URL"] || ""}\n`;
+    const content = `TG_API_ID=${existing["TG_API_ID"] || ""}\nTG_API_HASH=${existing["TG_API_HASH"] || ""
+      }\nMONGODB_URL=${existing["MONGODB_URL"] || ""}\n`;
     fs.writeFileSync(envPath, content, { encoding: "utf-8" });
     return;
   }

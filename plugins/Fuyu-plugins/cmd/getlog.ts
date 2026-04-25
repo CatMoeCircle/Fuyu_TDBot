@@ -112,7 +112,7 @@ export default async function getlog(
 
     logger.info(`已发送日志文件：${fileName} 给用户 ${chatId}`);
   } catch (error) {
-    logger.error("处理获取日志命令时出错:", error);
+    logger.error(error, "处理获取日志命令时出错:");
     await sendMessage(client, chatId, {
       text:
         "❌ **获取日志文件时发生错误**\n\n" +

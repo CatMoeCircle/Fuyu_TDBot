@@ -29,7 +29,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
 
       if (config?.cmd?.help) {
         try {
-          logger.debug("使用自定义帮助文本:", JSON.stringify(config.cmd.help));
+          logger.debug({ customHelp: config.cmd.help }, "发送自定义帮助消息");
 
           await client.invoke({
             _: "sendMessage",
@@ -49,7 +49,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           });
           return;
         } catch (e) {
-          logger.error("发送自定义帮助消息失败", e);
+          logger.error(e, "发送自定义帮助消息失败");
           return;
         }
       }
@@ -253,7 +253,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
             },
           });
         } catch (e) {
-          logger.error("发送文本帮助失败", e);
+          logger.error(e, "发送文本帮助失败");
         }
         return;
       }
@@ -308,7 +308,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           }
           return;
         } catch (e) {
-          logger.warn("使用缓存的 file_id 发送失败，将重新生成图片", e);
+          logger.error(e, "使用缓存的帮助图片失败，可能是 file_id 无效，正在删除缓存并重新生成:");
           // 如果发送失败，删除缓存并继续生成新图片
           await deleteImgCache(pngMetadata.hash);
         }
@@ -345,11 +345,11 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           await updateImgCache(pngMetadata.hash, file_id);
           logger.debug("已缓存帮助图片 file_id");
         } catch (err) {
-          logger.warn("保存 file_id 缓存失败", err);
+          logger.error(err, "缓存帮助图片 file_id 时出错:");
         }
       }
     } catch (e) {
-      logger.error("Help 处理错误", e);
+      logger.error(e, "执行帮助命令时出错:");
     }
   };
 }

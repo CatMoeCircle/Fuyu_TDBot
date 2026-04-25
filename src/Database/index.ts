@@ -52,7 +52,7 @@ async function connectClient(): Promise<MongoClient> {
     client = mongoClient;
     return mongoClient;
   } catch (err) {
-    logger.error("连接失败喵！", err);
+    logger.error(err, "连接失败喵！");
 
     await mongoClient.close().catch(() => undefined);
 

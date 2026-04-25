@@ -24,7 +24,7 @@ export default async function Start(
 
     if (config?.cmd?.start) {
       text = config.cmd.start;
-      logger.debug("使用自定义start文本:", JSON.stringify(text));
+      logger.debug({ customStart: text }, "使用自定义start文本");
     }
 
     // 发送消息示例（使用 client.invoke）
@@ -53,6 +53,6 @@ export default async function Start(
       });
     }
   } catch (e) {
-    logger.error("发送消息失败", e);
+    logger.error(e, "发送消息失败");
   }
 }

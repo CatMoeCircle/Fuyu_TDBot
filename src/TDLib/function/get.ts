@@ -18,10 +18,9 @@ export async function getUserFullInfo(client: Client, user_id: number) {
     });
     return user;
   } catch (error: unknown) {
-    logger.debug("getUserFullInfo", `param ${user_id}`, error as any);
+    logger.debug(error, `getUserFullInfo param ${user_id}`);
     throw new Error(
-      `获取用户详细信息失败 "${user_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      `获取用户详细信息失败 "${user_id}": ${error instanceof Error ? error.message : String(error)}`, { cause: error }
     );
   }
 }
@@ -40,11 +39,11 @@ export async function getUser(client: Client, user_id: number) {
       user_id: user_id,
     });
     return user;
-  } catch (error: unknown) {
-    logger.debug("getUser", `param ${user_id}`, error as any);
+  } catch (error) {
+    logger.debug(error, `getUser param${user_id}`);
     throw new Error(
       `获取用户的基本信息失败 "${user_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -64,10 +63,10 @@ export async function getChat(client: Client, chat_id: number) {
     });
     return chat;
   } catch (error: unknown) {
-    logger.debug("getChat", `param ${chat_id}`, error as any);
+    logger.debug(error, `getChat param ${chat_id}`);
     throw new Error(
       `获取对话的基本信息失败 "${chat_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -87,10 +86,10 @@ export async function getSupergroup(client: Client, supergroup_id: number) {
     });
     return Supergrou;
   } catch (error: unknown) {
-    logger.debug("getSupergroup", `param ${supergroup_id}`, error as any);
+    logger.debug(error, `getSupergroup param ${supergroup_id}`);
     throw new Error(
       `获取超级群组的基本信息失败 "${supergroup_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -114,13 +113,12 @@ export async function getSupergroupFullInfo(
     return Supergrou;
   } catch (error: unknown) {
     logger.debug(
-      "getSupergroupFullInfo",
-      `param ${supergroup_id}`,
-      error as any
+      error,
+      `getSupergroupFullInfo param ${supergroup_id}`
     );
     throw new Error(
       `获取超级群组的完整信息失败 "${supergroup_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -146,10 +144,10 @@ export async function getMessage(
     });
     return message;
   } catch (error: unknown) {
-    logger.debug("getMessage", `param ${chat_id}, ${message_id}`, error as any);
+    logger.debug(error, `getMessage param ${chat_id}, ${message_id}`);
     throw new Error(
       `获取消息的详细信息失败 "${message_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -176,13 +174,12 @@ export async function getChatMember(
     return chatMember;
   } catch (error: unknown) {
     logger.debug(
-      "getChatMember",
-      `param ${chat_id}, ${member_id}`,
-      error as any
+      error,
+      `getChatMember param ${chat_id}, ${member_id}`,
     );
     throw new Error(
       `获取聊天成员的详细信息失败 "${member_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -202,10 +199,10 @@ export async function getBasicGroup(client: Client, basic_group_id: number) {
     });
     return basicGroup;
   } catch (error: unknown) {
-    logger.debug("getBasicGroup", `param ${basic_group_id}`, error as any);
+    logger.debug(error, `getBasicGroup param ${basic_group_id}`);
     throw new Error(
       `获取基础群组的基本信息失败 "${basic_group_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -232,13 +229,12 @@ export async function getMessageLink(
     return messageLink;
   } catch (error: unknown) {
     logger.debug(
-      "getMessageLink",
-      `param ${chat_id}, ${message_id}`,
-      error as any
+      error,
+      `getMessageLink param ${chat_id}, ${message_id}`
     );
     throw new Error(
       `获取消息链接失败 "${chat_id}, ${message_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -258,10 +254,10 @@ export async function getStickerSet(client: Client, set_id: string) {
     });
     return StickerSet;
   } catch (error: unknown) {
-    logger.debug("getStickerSet", `param ${set_id}`, error as any);
+    logger.debug(error, `getStickerSet param ${set_id}`);
     throw new Error(
       `获取贴纸包详细信息失败 "${set_id}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -287,10 +283,10 @@ export async function getLinkPreview(
     });
     return preview;
   } catch (error: unknown) {
-    logger.debug("getLinkPreview", `param ${text}`, error as any);
+    logger.debug(error, `getLinkPreview param ${text}`);
     throw new Error(
       `通过消息文本返回链接预览失败 "${text}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -321,15 +317,15 @@ export async function getMessageLinkInfo(client: Client, url: string) {
       const match = e.message.match(/retry after (\d+)/);
       if (match) {
         const waitSec = Number(match[1]) + 2; // 多等2秒
-        logger.warn("getMessageLinkInfo", `被限流，等待 ${waitSec} 秒再试`);
+        logger.warn(`getMessageLinkInfo 被限流，等待 ${waitSec} 秒再试`);
         await new Promise((r) => setTimeout(r, waitSec * 1000));
         return getMessageLinkInfo(client, url); // 重试
       }
     }
-    logger.debug("getMessageLinkInfo", `param ${url}`, error as any);
+    logger.debug(error, `getMessageLinkInfo param ${url}`);
     throw new Error(
       `获取消息链接信息失败 "${url}": ${error instanceof Error ? error.message : String(error)
-      }`
+      }`, { cause: error }
     );
   }
 }
@@ -346,9 +342,9 @@ export async function getMe(client: Client) {
     const me = await client.invoke({ _: "getMe" });
     return me;
   } catch (error) {
-    logger.debug("getMe", `param`, error as any);
+    logger.debug(error, `getMe`);
     throw new Error(
-      `getMe失败: ${error instanceof Error ? error.message : String(error)}`
+      `getMe失败: ${error instanceof Error ? error.message : String(error)}`, { cause: error }
     );
   }
 }
@@ -370,9 +366,9 @@ export async function getChatByUsername(client: Client, username: string) {
 
     return chat;
   } catch (error) {
-    logger.debug("getChatByUsername", `param ${username}`, error as any);
+    logger.debug(error, `getChatByUsername param ${username}`);
     throw new Error(
-      `获取聊天失败 "${username}": ${error instanceof Error ? error.message : String(error)}`
+      `获取聊天失败 "${username}": ${error instanceof Error ? error.message : String(error)}`, { cause: error }
     );
   }
 }

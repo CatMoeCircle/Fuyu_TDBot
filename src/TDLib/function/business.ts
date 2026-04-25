@@ -43,7 +43,7 @@ export async function sendBusinessMessage(
       media !== undefined
         ? await buildInputMessageContent(client, text, media)
         : text !== undefined
-        ? {
+          ? {
             _: "inputMessageText",
             text: await parseTextEntities(client, text, "MarkdownV2"),
             link_preview_options: {
@@ -51,7 +51,7 @@ export async function sendBusinessMessage(
               is_disabled: link_preview ?? false,
             },
           }
-        : undefined;
+          : undefined;
 
     const payload: sendBusinessMessage = {
       _: "sendBusinessMessage",
@@ -87,7 +87,7 @@ export async function sendBusinessMessage(
     if (err.message.includes("发送业务消息超时")) {
       logger.warn(`sendBusinessMessage: ${err.message}`);
     } else {
-      logger.error("sendBusinessMessage: 发送业务消息失败", error);
+      logger.error(error, "sendBusinessMessage: 发送业务消息失败");
     }
     throw err;
   }
@@ -116,9 +116,9 @@ export async function sendMessageAlbum(
 
   const reply_to: InputMessageReplyTo$Input | undefined = reply_to_message_id
     ? {
-        _: "inputMessageReplyToMessage",
-        message_id: reply_to_message_id,
-      }
+      _: "inputMessageReplyToMessage",
+      message_id: reply_to_message_id,
+    }
     : undefined;
 
   // 无媒体时直接发送
@@ -175,8 +175,8 @@ export async function sendMessageAlbum(
   } catch (error) {
     const err = error as Error;
     if (err.message.includes("发送业务消息超时"))
-      logger.warn(`sendBusinessMessageAlbum: ${err.message}`, chat_id);
-    else logger.error("sendBusinessMessageAlbum: 发送业务消息失败", err);
+      logger.warn(chat_id, `sendBusinessMessageAlbum: ${err.message}`);
+    else logger.error(err, "sendBusinessMessageAlbum: 发送业务消息失败");
 
     throw err;
   }
@@ -199,13 +199,11 @@ export async function getBusinessConnection(
     return businessConnection;
   } catch (error: unknown) {
     logger.error(
-      "getBusinessConnection",
-      `param ${connection_id}`,
-      error as any
+      error,
+      `getBusinessConnection: param ${connection_id}`,
     );
     throw new Error(
-      `获取业务连接的信息失败"${connection_id}": ${
-        error instanceof Error ? error.message : String(error)
+      `获取业务连接的信息失败"${connection_id}": ${error instanceof Error ? error.message : String(error)
       }`
     );
   }
