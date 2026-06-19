@@ -26,7 +26,7 @@ export default async function getlog(
     userId &&
     (userId === config?.super_admin || (config?.admin ?? []).includes(userId));
   if (!isAdmin) {
-    sendMessage(client, chatId, {
+    await sendMessage(client, chatId, {
       text: "❌ 你没有权限使用该命令",
     });
     return;
@@ -50,7 +50,7 @@ export default async function getlog(
     return;
   }
 
-  const logType = args[0].toLowerCase();
+  const logType = args[0]!.toLowerCase();
   let fileName;
   let displayName;
 

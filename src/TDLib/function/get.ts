@@ -2,6 +2,8 @@ import logger from "@log/index.ts";
 
 import type { MessageSender$Input, formattedText$Input } from "tdlib-types";
 import type { Client } from "tdl";
+import { getErrorMessage } from "../../utils/error.ts";
+
 
 /**
  * 获取用户的详细信息，包括个人资料和设置等完整数据。
@@ -175,10 +177,10 @@ export async function getChatMember(
   } catch (error: unknown) {
     logger.debug(
       error,
-      `getChatMember param ${chat_id}, ${member_id}`,
+      `getChatMember param ${chat_id}, ${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id}`,
     );
     throw new Error(
-      `获取聊天成员的详细信息失败 "${member_id}": ${error instanceof Error ? error.message : String(error)
+      `获取聊天成员的详细信息失败 "${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id}": ${error instanceof Error ? error.message : String(error)
       }`, { cause: error }
     );
   }
@@ -283,9 +285,9 @@ export async function getLinkPreview(
     });
     return preview;
   } catch (error: unknown) {
-    logger.debug(error, `getLinkPreview param ${text}`);
+    logger.debug(error, `getLinkPreview param ${text.text}`);
     throw new Error(
-      `通过消息文本返回链接预览失败 "${text}": ${error instanceof Error ? error.message : String(error)
+      `通过消息文本返回链接预览失败 "${text.text}": ${error instanceof Error ? error.message : String(error)
       }`, { cause: error }
     );
   }
@@ -308,13 +310,17 @@ export async function getMessageLinkInfo(client: Client, url: string) {
     });
     return linkInfo;
   } catch (error: unknown) {
-    const e = error as any;
+    const msg = getErrorMessage(error);
+
     if (
-      e?.code === 429 &&
-      typeof e.message === "string" &&
-      e.message.includes("retry after")
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === 429 &&
+      typeof msg === "string" &&
+      msg.includes("retry after")
     ) {
-      const match = e.message.match(/retry after (\d+)/);
+      const match = msg.match(/retry after (\d+)/);
       if (match) {
         const waitSec = Number(match[1]) + 2; // 多等2秒
         logger.warn(`getMessageLinkInfo 被限流，等待 ${waitSec} 秒再试`);

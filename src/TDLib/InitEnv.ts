@@ -12,8 +12,8 @@ export default async function initEnv() {
     readFileSync(new URL("../../package.json", import.meta.url), {
       encoding: "utf-8",
     })
-  );
-  process.env.APP_VERSION = version;
+  ) as { version: string };
+  process.env.APP_VERSION = version ?? "";
   // 检查是否为安卓系统
   await checkAndroidTDLib();
 
@@ -71,7 +71,7 @@ export default async function initEnv() {
 
       // 解压文件
       const extractDir = path.join(tempDir, "libs");
-      await extractTarGz(tempFile, extractDir);
+      extractTarGz(tempFile, extractDir);
 
       // 查找 libtdjson.so
       const soFilePath = path.join(
@@ -132,9 +132,9 @@ export default async function initEnv() {
 
           res.on("end", () => {
             try {
-              const release = JSON.parse(data);
+              const release = JSON.parse(data) as { assets: Array<{ name: string; browser_download_url: string }>; tag_name: string };
               const asset = release.assets.find(
-                (a: any) => a.name === "libs.tar.gz"
+                (a: { name: string; browser_download_url: string }) => a.name === "libs.tar.gz"
               );
 
               if (!asset) {
@@ -147,7 +147,7 @@ export default async function initEnv() {
                 version: release.tag_name,
               });
             } catch (error) {
-              reject(error);
+              reject(error instanceof Error ? error : new Error(String(error)));
             }
           });
         })
@@ -186,7 +186,7 @@ export default async function initEnv() {
     });
   }
 
-  async function extractTarGz(source: string, dest: string): Promise<void> {
+  function extractTarGz(source: string, dest: string): void {
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(dest, { recursive: true });
     }
@@ -214,7 +214,7 @@ export default async function initEnv() {
       {
         name: "unzip",
         checkCmd: "unzip -v",
-        extractCmd: (_src: string, _dst: string) => {
+        extractCmd: () => {
           // unzip 通常不能直接处理 .tar.gz, 但我们可以尝试
           // 先用 gunzip 或其他方式解压
           return null; // 跳过 unzip
@@ -281,7 +281,7 @@ export default async function initEnv() {
   const envPath = path.resolve(process.cwd(), ".env");
   // 检查是否已存在并包含有效值
   const requiredKeys = ["TG_API_ID", "TG_API_HASH", "MONGODB_URL"];
-  let existing: Record<string, string> = {};
+  const existing: Record<string, string> = {};
 
   if (fs.existsSync(envPath)) {
     const raw = fs.readFileSync(envPath, { encoding: "utf-8" });

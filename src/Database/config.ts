@@ -167,5 +167,5 @@ export async function removeConfigFields<T extends keyof ConfigMap>(
 
   await safeWrite();
 
-  return config as ConfigMap[T];
+  return config
 }

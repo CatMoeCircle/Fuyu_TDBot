@@ -58,6 +58,13 @@ export default class FuyuPlugins extends Plugin {
           return getinfo(updateNewMessage, args || [], this.client);
         },
       },
+      dc: {
+        description: "查询用户/频道头像对应的 DC",
+        handler: async (updateNewMessage, args) => {
+          const { default: dc } = await import("./cmd/dc.ts");
+          return dc(updateNewMessage, args || [], this.client);
+        },
+      },
       log: {
         description: "获取日志文件(仅限私聊&bot主人)",
         scope: "private",

@@ -9,6 +9,7 @@ import type {
   InputMessageContent$Input,
   InputFile$Input,
   InputMessageReplyTo$Input,
+  replyMarkupInlineKeyboard$Input,
   ButtonStyle as Td$ButtonStyle,
   inlineKeyboardButton,
   message,
@@ -31,6 +32,9 @@ import type {
   ReplyMarkupInput,
 } from "../types/message.ts";
 import { parseTextEntities } from "./index.ts";
+import { getErrorMessage } from "../../utils/error.ts";
+
+
 
 /**
  * 向指定聊天发送文本消息
@@ -85,6 +89,8 @@ export async function sendMessage(
     };
 
     // 发送消息
+    console.log(payload);
+
     const oldMessage = await client.invoke({ ...payload, ...invoke });
 
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -110,16 +116,18 @@ export async function sendMessage(
     try {
       return await Promise.race([sendPromise, timeoutPromise]);
     } finally {
-      if (timer !== undefined) clearTimeout(timer as any);
+      if (timer !== undefined) clearTimeout(timer);
     }
   } catch (error) {
-    const err = error as Error;
-    if (err.message.includes("发送消息超时")) {
-      logger.warn(err, `sendMessage: ${err.message}`);
+    const errMsg = getErrorMessage(error);
+    if (errMsg.includes("发送消息超时")) {
+      logger.warn(error, `sendMessage: ${errMsg}`);
     } else {
-      logger.error(err, `sendMessage: 发送消息失败`);
+      logger.error(error, `sendMessage: 发送消息失败`);
     }
-    throw err;
+
+    if (error instanceof Error) throw error;
+    throw new Error(errMsg, { cause: error });
   }
 }
 
@@ -195,7 +203,10 @@ export async function sendMessageAlbum(
 
     // 等待发送成功回执
     const oldIds = new Set<number>(
-      messages.map((m: any) => m.id).filter((id: any) => typeof id === "number")
+      messages.reduce<number[]>((ids, m) => {
+        if (m !== null && typeof m.id === "number") ids.push(m.id);
+        return ids;
+      }, [])
     );
     const collected: messages = {
       _: "messages",
@@ -227,15 +238,16 @@ export async function sendMessageAlbum(
     try {
       return await Promise.race([sendPromise, timeoutPromise]);
     } finally {
-      if (timer !== undefined) clearTimeout(timer as any);
+      if (timer !== undefined) clearTimeout(timer);
     }
   } catch (error) {
-    const err = error as Error;
-    if (err.message.includes("发送消息超时"))
-      logger.warn(err, `sendMessageAlbum: ${err.message}`);
-    else logger.error(err, `sendMessageAlbum: 发送消息失败`);
+    const errMsg = getErrorMessage(error);
+    if (errMsg.includes("发送消息超时"))
+      logger.warn(error, `sendMessageAlbum: ${errMsg}`);
+    else logger.error(error, `sendMessageAlbum: 发送消息失败`);
 
-    throw err;
+    if (error instanceof Error) throw error;
+    throw new Error(errMsg, { cause: error });
   }
 }
 
@@ -257,7 +269,7 @@ export async function deleteMessage(
     .filter((id) => Number.isFinite(id));
 
   if (ids.length === 0) {
-    logger.error(`deleteMessage: 无效消息ID (${message_ids})`);
+    logger.error(`deleteMessage: 无效消息ID (${String(message_ids)})`);
     return;
   }
   try {
@@ -320,10 +332,7 @@ export async function editMessageCaption(
     });
     return result;
   } catch (error) {
-    const err: any = error;
-    const errMsg =
-      (err && (err.message || err.error)) ||
-      (typeof err === "string" ? err : String(err));
+    const errMsg = getErrorMessage(error);
 
     if (typeof errMsg === "string" && errMsg.includes("MESSAGE_NOT_MODIFIED")) {
       logger.warn("editMessageCaption: 消息未被修改（MESSAGE_NOT_MODIFIED）");
@@ -351,10 +360,7 @@ export async function editMessageCaption(
             });
             return retryResult;
           } catch (err2) {
-            const e2: any = err2;
-            const e2Msg =
-              (e2 && (e2.message || e2.error)) ||
-              (typeof e2 === "string" ? e2 : String(e2));
+            const e2Msg = getErrorMessage(err2);
 
             if (
               typeof e2Msg === "string" &&
@@ -429,10 +435,7 @@ export async function editMessageText(
     });
     return result;
   } catch (error) {
-    const err: any = error;
-    const errMsg =
-      (err && (err.message || err.error)) ||
-      (typeof err === "string" ? err : String(err));
+    const errMsg = getErrorMessage(error);
 
     if (typeof errMsg === "string" && errMsg.includes("MESSAGE_NOT_MODIFIED")) {
       logger.warn("editMessage: 消息未被修改（MESSAGE_NOT_MODIFIED）");
@@ -460,10 +463,7 @@ export async function editMessageText(
             });
             return retryResult;
           } catch (err2) {
-            const e2: any = err2;
-            const e2Msg =
-              (e2 && (e2.message || e2.error)) ||
-              (typeof e2 === "string" ? e2 : String(e2));
+            const e2Msg = getErrorMessage(err2);
 
             if (
               typeof e2Msg === "string" &&
@@ -526,11 +526,7 @@ export async function editMessageMedia(
     });
     return result;
   } catch (error) {
-    const err: any = error;
-    const errMsg =
-      (err && (err.message || err.error)) ||
-      (typeof err === "string" ? err : String(err));
-
+    const errMsg = getErrorMessage(error);
     if (typeof errMsg === "string" && errMsg.includes("MESSAGE_NOT_MODIFIED")) {
       logger.warn("editMessageMedia: 消息未被修改（MESSAGE_NOT_MODIFIED）");
       return;
@@ -605,145 +601,169 @@ export async function buildInputMessageContent(
 ) {
   let input_message_content: InputMessageContent$Input | undefined;
   if ("photo" in media) {
+    const captionText =
+      text !== undefined
+        ? await parseTextEntities(client, text, "MarkdownV2")
+        : media.caption
+          ? await parseTextEntities(client, media.caption, "MarkdownV2")
+          : undefined;
     input_message_content = {
       _: "inputMessagePhoto",
-      photo: toTdInputFile(media.photo),
-      thumbnail: {
-        _: "inputThumbnail",
-        thumbnail:
-          media.thumbnail !== undefined
-            ? toTdInputFile({
-              path: media.thumbnail.thumbnail.path,
-              id: media.thumbnail.thumbnail.url,
-            })
-            : undefined,
-        width: media.thumbnail?.width,
-        height: media.thumbnail?.height,
+      photo: {
+        _: "inputPhoto",
+        photo: toTdInputFile(media.photo),
+        ...(media.thumbnail !== undefined
+          ? {
+            thumbnail: {
+              _: "inputThumbnail",
+              thumbnail: toTdInputFile({
+                path: media.thumbnail.thumbnail.path,
+                id: media.thumbnail.thumbnail.url,
+              }),
+              width: media.thumbnail.width,
+              height: media.thumbnail.height,
+            },
+          }
+          : {}),
+        width: media.width,
+        height: media.height,
       },
-      width: media.width,
-      height: media.height,
-      caption:
-        text !== undefined
-          ? await parseTextEntities(client, text, "MarkdownV2")
-          : media.caption
-            ? await parseTextEntities(client, media.caption, "MarkdownV2")
-            : undefined,
+      ...(captionText !== undefined ? { caption: captionText } : {}),
       has_spoiler: media.has_spoiler || false,
     };
   } else if ("video" in media) {
-    const inputVideo = toTdInputFile(media.video);
-
-    const inputCover =
-      media.cover !== undefined
-        ? toTdInputFile(media.cover)
-        : undefined;
+    const captionText =
+      text !== undefined
+        ? await parseTextEntities(client, text, "MarkdownV2")
+        : media.caption
+          ? await parseTextEntities(client, media.caption, "MarkdownV2")
+          : undefined;
 
     input_message_content = {
       _: "inputMessageVideo",
-      video: inputVideo,
-      ...(inputCover ? { cover: inputCover } : {}),
-      duration: media.duration,
-      width: media.width,
-      height: media.height,
-      supports_streaming: media.supports_streaming,
+      video: {
+        _: "inputVideo",
+        video: toTdInputFile(media.video),
+        ...(media.cover !== undefined
+          ? { cover: toTdInputFile(media.cover) }
+          : {}),
+        duration: media.duration,
+        width: media.width,
+        height: media.height,
+        supports_streaming: media.supports_streaming,
+      },
+      ...(captionText !== undefined ? { caption: captionText } : {}),
       has_spoiler: media.has_spoiler,
-      caption:
-        text !== undefined
-          ? await parseTextEntities(client, text, "MarkdownV2")
-          : media.caption
-            ? await parseTextEntities(client, media.caption, "MarkdownV2")
-            : undefined,
     };
   } else if ("audio" in media) {
+    const captionText =
+      text !== undefined
+        ? await parseTextEntities(client, text, "MarkdownV2")
+        : media.caption
+          ? await parseTextEntities(client, media.caption, "MarkdownV2")
+          : undefined;
+
     input_message_content = {
       _: "inputMessageAudio",
-      audio: toTdInputFile(media.audio),
-      album_cover_thumbnail: {
-        _: "inputThumbnail",
-        thumbnail:
-          media.album_cover_thumbnail !== undefined
-            ? toTdInputFile({
-              path: media.album_cover_thumbnail.thumbnail.path,
-              id: media.album_cover_thumbnail.thumbnail.url,
-            })
-            : undefined,
-        width: media.album_cover_thumbnail?.width,
-        height: media.album_cover_thumbnail?.height,
+      audio: {
+        _: "inputAudio",
+        audio: toTdInputFile(media.audio),
+        ...(media.album_cover_thumbnail !== undefined
+          ? {
+            album_cover_thumbnail: {
+              _: "inputThumbnail",
+              thumbnail: toTdInputFile({
+                path: media.album_cover_thumbnail.thumbnail.path,
+                id: media.album_cover_thumbnail.thumbnail.url,
+              }),
+              width: media.album_cover_thumbnail.width,
+              height: media.album_cover_thumbnail.height,
+            },
+          }
+          : {}),
+        duration: media.duration,
+        title: media.title,
+        performer: media.performe,
       },
-      duration: media.duration,
-      title: media.title,
-      performer: media.performe,
-      caption:
-        text !== undefined
-          ? await parseTextEntities(client, text, "MarkdownV2")
-          : media.caption
-            ? await parseTextEntities(client, media.caption, "MarkdownV2")
-            : undefined,
+      ...(captionText !== undefined ? { caption: captionText } : {}),
     };
   } else if ("file" in media) {
+    const captionText =
+      text !== undefined
+        ? await parseTextEntities(client, text, "MarkdownV2")
+        : undefined;
+
     input_message_content = {
       _: "inputMessageDocument",
-      document: toTdInputFile(media.file),
-      thumbnail: {
-        _: "inputThumbnail",
-        thumbnail:
-          media.thumbnail !== undefined
-            ? toTdInputFile({
-              path: media.thumbnail.thumbnail.path,
-              id: media.thumbnail.thumbnail.url,
-            })
-            : undefined,
-        width: media.thumbnail?.width,
-        height: media.thumbnail?.height,
+      document: {
+        _: "inputDocument",
+        document: toTdInputFile(media.file),
+        ...(media.thumbnail !== undefined
+          ? {
+            thumbnail: {
+              _: "inputThumbnail",
+              thumbnail: toTdInputFile({
+                path: media.thumbnail.thumbnail.path,
+                id: media.thumbnail.thumbnail.url,
+              }),
+              width: media.thumbnail.width,
+              height: media.thumbnail.height,
+            },
+          }
+          : {}),
       },
-      caption:
-        text !== undefined
-          ? await parseTextEntities(client, text, "MarkdownV2")
-          : undefined,
+      ...(captionText !== undefined ? { caption: captionText } : {}),
     };
   } else if ("animation" in media) {
+    const captionText =
+      text !== undefined
+        ? await parseTextEntities(client, text, "MarkdownV2")
+        : media.caption
+          ? await parseTextEntities(client, media.caption, "MarkdownV2")
+          : undefined;
+
     input_message_content = {
       _: "inputMessageAnimation",
-      animation: toTdInputFile(media.animation),
-      thumbnail: {
-        _: "inputThumbnail",
-        thumbnail:
-          media.thumbnail !== undefined
-            ? toTdInputFile({
-              path: media.thumbnail.thumbnail.path,
-              id: media.thumbnail.thumbnail.url,
-            })
-            : undefined,
-        width: media.thumbnail?.width,
-        height: media.thumbnail?.height,
+      animation: {
+        _: "inputAnimation",
+        animation: toTdInputFile(media.animation),
+        ...(media.thumbnail !== undefined
+          ? {
+            thumbnail: {
+              _: "inputThumbnail",
+              thumbnail: toTdInputFile({
+                path: media.thumbnail.thumbnail.path,
+                id: media.thumbnail.thumbnail.url,
+              }),
+              width: media.thumbnail.width,
+              height: media.thumbnail.height,
+            },
+          }
+          : {}),
+        duration: media.duration,
+        width: media.width,
+        height: media.height,
       },
-      width: media.width,
-      height: media.height,
-      duration: media.duration,
+      ...(captionText !== undefined ? { caption: captionText } : {}),
       has_spoiler: media.has_spoiler,
-      caption:
-        text !== undefined
-          ? await parseTextEntities(client, text, "MarkdownV2")
-          : media.caption
-            ? await parseTextEntities(client, media.caption, "MarkdownV2")
-            : undefined,
     };
   } else if ("sticker" in media) {
     input_message_content = {
       _: "inputMessageSticker",
       sticker: toTdInputFile(media.sticker),
-      thumbnail: {
-        _: "inputThumbnail",
-        thumbnail:
-          media.thumbnail !== undefined
-            ? toTdInputFile({
+      ...(media.thumbnail !== undefined
+        ? {
+          thumbnail: {
+            _: "inputThumbnail",
+            thumbnail: toTdInputFile({
               path: media.thumbnail.thumbnail.path,
               id: media.thumbnail.thumbnail.url,
-            })
-            : undefined,
-        width: media.thumbnail?.width,
-        height: media.thumbnail?.height,
-      },
+            }),
+            width: media.thumbnail.width,
+            height: media.thumbnail.height,
+          },
+        }
+        : {}),
       width: media.width,
       height: media.height,
       emoji: media.emoji,
@@ -779,7 +799,7 @@ function buildButtonStyle(style?: ButtonStyle): Td$ButtonStyle {
  * @param replyMarkup 用户输入的二维按钮数组
  * @returns TDLib 内联键盘
  */
-export function buildReplyMarkup(replyMarkup?: ReplyMarkupInput) {
+export function buildReplyMarkup(replyMarkup?: ReplyMarkupInput): replyMarkupInlineKeyboard$Input | undefined {
   if (!Array.isArray(replyMarkup) || replyMarkup.length === 0) return undefined;
 
   const rows = replyMarkup
@@ -789,7 +809,7 @@ export function buildReplyMarkup(replyMarkup?: ReplyMarkupInput) {
   if (rows.length === 0) return undefined;
 
   return {
-    _: "replyMarkupInlineKeyboard" as "replyMarkupInlineKeyboard",
+    _: "replyMarkupInlineKeyboard",
     rows,
   };
 }

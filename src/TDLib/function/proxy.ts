@@ -296,7 +296,7 @@ export async function getProxyLink(client: Client, proxy_id: number) {
     const proxy = await client.invoke({
       _: "getProxies",
     });
-    const targetProxy = proxy.proxies.find((p: any) => p.id === proxy_id);
+    const targetProxy = proxy.proxies.find((p) => p.id === proxy_id);
     const result = await client.invoke({
       _: "getInternalLink",
       type: {

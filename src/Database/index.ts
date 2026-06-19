@@ -19,7 +19,8 @@ function extractDatabaseName(uri: string): string {
   const match = uri.match(/^mongodb(?:\+srv)?:\/\/[^/]+\/([^?]+)/i);
 
   if (match && match[1]) {
-    const rawName = match[1].split("/")[0];
+    const rawName = (match[1] ?? "").split("/")[0];
+    if (!rawName) return DEFAULT_DB_NAME;
     const decodedName = decodeURIComponent(rawName.trim());
     if (decodedName) {
       return decodedName;

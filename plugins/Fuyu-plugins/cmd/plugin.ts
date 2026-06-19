@@ -26,7 +26,7 @@ export default async function plugin(
     userId &&
     (userId === config?.super_admin || (config?.admin ?? []).includes(userId));
   if (!isAdmin) {
-    sendMessage(client, chatId, {
+    await sendMessage(client, chatId, {
       text: "❌ 你没有权限使用该命令",
     });
     return;
@@ -56,7 +56,7 @@ export default async function plugin(
     return;
   }
 
-  const operation = args[0].toLowerCase();
+  const operation = args[0]!.toLowerCase();
 
   switch (operation) {
     case "list":
@@ -69,7 +69,7 @@ export default async function plugin(
         });
         return;
       }
-      await handlePluginInfo(client, chatId, args[1], api);
+      await handlePluginInfo(client, chatId, args[1]!, api);
       break;
     case "enable":
       if (args.length < 2) {
@@ -78,7 +78,7 @@ export default async function plugin(
         });
         return;
       }
-      await handleEnablePlugin(client, chatId, args[1], api);
+      await handleEnablePlugin(client, chatId, args[1]!, api);
       break;
     case "disable":
       if (args.length < 2) {
@@ -87,7 +87,7 @@ export default async function plugin(
         });
         return;
       }
-      await handleDisablePlugin(client, chatId, args[1], api);
+      await handleDisablePlugin(client, chatId, args[1]!, api);
       break;
     case "reload":
       if (args.length < 2) {
@@ -96,7 +96,7 @@ export default async function plugin(
         });
         return;
       }
-      await handleReloadPlugin(client, chatId, args[1], api);
+      await handleReloadPlugin(client, chatId, args[1]!, api);
       break;
 
     case "delete":
@@ -106,7 +106,7 @@ export default async function plugin(
         });
         return;
       }
-      await handleDeletePlugin(client, chatId, args[1], api);
+      await handleDeletePlugin(client, chatId, args[1]!, api);
       break;
     case "disabled":
       await handleListDisabledPlugins(client, chatId);
@@ -190,7 +190,7 @@ async function handlePluginInfo(
         cmdHandlers.forEach((cmd) => {
           const cmdDef = plugin.instance.cmdHandlers[cmd];
           message += `• \`${cmd}\``;
-          if (cmdDef.description) {
+          if (cmdDef?.description) {
             message += ` - ${cmdDef.description}`;
           }
           message += `\n`;
@@ -215,7 +215,7 @@ async function handlePluginInfo(
         runHandlers.forEach((handler) => {
           const runDef = plugin.instance.runHandlers[handler];
           message += `• ${handler}`;
-          if (runDef.description) {
+          if (runDef?.description) {
             message += ` - ${runDef.description}`;
           }
           message += `\n`;

@@ -20,6 +20,7 @@ export async function resolve(
       "@TDLib/": "src/TDLib/",
       "@type/": "src/types/",
       "@function/": "src/function/",
+      "@utils/": "src/utils/",
       "@db/": "src/Database/",
     };
 

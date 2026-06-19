@@ -1,26 +1,36 @@
 {
   "compilerOptions": {
-    "target": "esnext",
+    "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+
     "strict": true,
-    "types": ["bun", "node"],
-    "esModuleInterop": true,
-    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true,
-    "outDir": "dist",
-    "rootDir": ".",
-    "baseUrl": "./src",
+
+    "types": ["node"],
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+
     "paths": {
-      "@log/*": ["./log/*"],
-      "@plugin/*": ["./plugin/*"],
-      "@TDLib/*": ["./TDLib/*"],
-      "@type/*": ["./types/*"],
-      "@function/*": ["./function/*"],
-      "@db/*": ["./Database/*"]
+      "@log/*": ["src/log/*"],
+      "@plugin/*": ["src/plugin/*"],
+      "@TDLib/*": ["src/TDLib/*"],
+      "@type/*": ["src/types/*"],
+      "@utils/*": ["src/utils/*"],
+      "@function/*": ["src/function/*"],
+      "@db/*": ["src/Database/*"]
     }
   },
-  "include": ["src", "src/types", "plugins"],
+
+  "include": ["src", "plugins", "eslint.config.ts", "node/loader.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -59,7 +59,7 @@ export async function generateImage(
     jpegQuality?: number;
   },
   vuetemplateStr: string,
-  props?: Record<string, any>
+  props?: Record<string, unknown>
 ): Promise<{
   path?: string;
   width?: number;

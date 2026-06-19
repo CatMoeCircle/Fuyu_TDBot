@@ -14,6 +14,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 读取 bg.jpg 并转换为 base64 data URL
+const bgImageBuffer = await fs.readFile(path.join(__dirname, "../assets/bg.jpg"));
+const bgImageBase64 = `data:image/jpeg;base64,${bgImageBuffer.toString("base64")}`;
+
 
 export const description = "帮助命令 列出所有可用命令";
 export const scope: CommandScope = "all";
@@ -151,7 +158,6 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
 
         // 先按 showInHelp 标记过滤
         const effectiveCommands = commands.filter(([, def]) => {
-          // @ts-ignore
           return (def?.showInHelp as unknown) !== false;
         });
 
@@ -172,7 +178,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
         }));
 
         if (finalVisible.length === 1) {
-          const [cmd, def] = finalVisible[0];
+          const [cmd, def] = finalVisible[0]!;
           singleCommandList.push({
             name: plugin.name,
             cmd,
@@ -197,7 +203,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
         }>;
       }> = [];
 
-      let prefix = config?.PREFIXES?.[0] || "/";
+      const prefix = config?.PREFIXES?.[0] || "/";
       // 1. 内置命令已移动到插件的命令列表中，无需单独添加“内置命令”分组
 
       // 2. 添加单命令插件列表
@@ -225,7 +231,8 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
       }
 
       // 如果请求文本模式（例如 `/help text`），直接发送文本帮助并跳过图片生成
-      if (args && args.length > 0 && args[0].toLowerCase() === "text") {
+      const firstArg = args?.[0];
+      if (firstArg?.toLowerCase() === "text") {
         let helpText = `帮助 — Fuyu_TDBot - v${process.env.APP_VERSION || "0.0.0"}\n\n`;
         for (const group of data) {
           helpText += `${group.name}：${group.desc}\n`;
@@ -276,7 +283,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           tips: "提示：发送 /help text 获取文本格式帮助信息",
         }
       );
-
+      logger.info(data);
       // 检查缓存是否存在且数据未变化
       if (pngMetadata?.file_id && pngMetadata.hash) {
         logger.debug("使用缓存的帮助图片 file_id");
@@ -296,14 +303,16 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
 
           // 180秒后自动删除消息
           if (sentMessage) {
-            setTimeout(async () => {
-              if (await isGroup(client, update.message.chat_id)) {
-                // 如果是群聊，删除原消息
-                deleteMessage(client, update.message.chat_id, [
-                  sentMessage.id,
-                  update.message.id,
-                ]);
-              }
+            setTimeout(() => {
+              void (async () => {
+                if (await isGroup(client, update.message.chat_id)) {
+                  // 如果是群聊，删除原消息
+                  await deleteMessage(client, update.message.chat_id, [
+                    sentMessage.id,
+                    update.message.id,
+                  ]);
+                }
+              })();
             }, 180000);
           }
           return;
@@ -318,7 +327,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
         reply_to_message_id: update.message.id,
         media: {
           photo: {
-            path: pngMetadata.path,
+            path: pngMetadata.path!,
           },
           width: pngMetadata.width,
           height: pngMetadata.height,
@@ -327,20 +336,26 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
 
       // 180秒后自动删除消息
       if (result) {
-        setTimeout(async () => {
-          if (await isGroup(client, update.message.chat_id)) {
-            // 如果是群聊，删除原消息
-            deleteMessage(client, update.message.chat_id, [
-              result.id,
-              update.message.id,
-            ]);
-          }
+        setTimeout(() => {
+          void (async () => {
+            if (await isGroup(client, update.message.chat_id)) {
+              // 如果是群聊，删除原消息
+              await deleteMessage(client, update.message.chat_id, [
+                result.id,
+                update.message.id,
+              ]);
+            }
+          })();
         }, 180000);
       }
 
       // 保存 file_id 到缓存
       if (result && result.content._ === "messagePhoto" && pngMetadata.hash) {
-        const file_id = result.content.photo.sizes.slice(-1)[0].photo.remote.id;
+        const lastSize = result.content.photo.sizes.slice(-1)[0];
+        if (!lastSize) {
+          return;
+        }
+        const file_id = lastSize.photo.remote.id;
         try {
           await updateImgCache(pngMetadata.hash, file_id);
           logger.debug("已缓存帮助图片 file_id");

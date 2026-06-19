@@ -3,7 +3,6 @@ import type {
   chatPermissions$Input,
   FileType$Input,
   chatAdministratorRights,
-  chatMemberStatusAdministrator,
   ChatMemberStatus,
   formattedText,
   MessageSender,
@@ -22,7 +21,7 @@ import {
 
 import { remark } from "remark";
 import remarkGfm from "remark-gfm";
-import type { Root, RootContent, Node } from "mdast";
+import type { RootContent, Node } from "mdast";
 
 type Td$chatPermissions = Omit<chatPermissions$Input, "_"> & {
   _?: chatPermissions$Input["_"];
@@ -76,7 +75,7 @@ export async function restrictUser(
   } catch (error: unknown) {
     logger.debug(
       error,
-      `限制用户权限时出错: param ${chat_id}, ${member_id}`
+      `限制用户权限时出错: param ${chat_id}, ${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id}`
     );
     throw new Error(
       `在 "${chat_id}" 限制用户 "${JSON.stringify(member_id)}"失败: ${error instanceof Error ? error.message : String(error)
@@ -118,7 +117,7 @@ export async function setUserAsMember(
       },
     });
   } catch (error) {
-    logger.debug(error, `setUserAsMember param ${chat_id}, ${member_id}`);
+    logger.debug(error, `setUserAsMember param ${chat_id}, ${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id}`);
     throw new Error(
       `在 "${chat_id}" 设置用户 "${JSON.stringify(member_id)}" 为无限制成员失败: ${error instanceof Error ? error.message : String(error)
       }`, { cause: error }
@@ -177,7 +176,7 @@ export async function setUserRestricted(
   } catch (error: unknown) {
     logger.debug(
       error,
-      `设置用户权限时出错: param ${chat_id}, ${member_id}`
+      `设置用户权限时出错: param ${chat_id}, ${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id}`
     );
     throw new Error(
       `在 "${chat_id}" 设置用户 "${JSON.stringify(member_id)}" 权限失败: ${error instanceof Error ? error.message : String(error)
@@ -242,7 +241,7 @@ export async function downloadFile(
     });
     return file;
   } catch (error) {
-    logger.debug(error, `下载 ${file_id} 失败: ${type}`);
+    logger.debug(error, `下载 ${file_id} 失败: ${type._}`);
     throw new Error(
       `下载 ${file_id} 失败: ${error instanceof Error ? error.message : String(error)
       }`, { cause: error }
@@ -258,7 +257,7 @@ export async function downloadFile(
  */
 export async function deleteFile(client: Client, file_id: number) {
   try {
-    client.invoke({
+    await client.invoke({
       _: "deleteFile",
       file_id: file_id,
     });
@@ -312,10 +311,10 @@ export async function banUser(
   } catch (error) {
     logger.debug(
       error,
-      `在 "${chat_id}" 封禁用户 "${member_id}" 失败: ${banned_until_date}`
+      `在 "${chat_id}" 封禁用户 "${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id}" 失败: ${banned_until_date}`
     );
     throw new Error(
-      `在 "${chat_id}" 封禁用户 "${member_id}" 失败: ${error instanceof Error ? error.message : String(error)
+      `在 "${chat_id}" 封禁用户 "${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id}" 失败: ${error instanceof Error ? error.message : String(error)
       }`, { cause: error }
     );
   }
@@ -465,9 +464,9 @@ export async function isUserAdmin(
     // 既不是创建者也不是管理员
     return false;
   } catch (error) {
-    logger.debug(error, `检查 ${chat_id} 中用户 ${member_id} 的管理员状态失败`);
+    logger.debug(error, `检查 ${chat_id} 中用户 ${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id} 的管理员状态失败`);
     throw new Error(
-      `检查 ${chat_id} 中用户 ${member_id} 的管理员状态失败: ${error instanceof Error ? error.message : String(error)
+      `检查 ${chat_id} 中用户 ${member_id?._ === "messageSenderUser" ? member_id.user_id : member_id?.chat_id} 的管理员状态失败: ${error instanceof Error ? error.message : String(error)
       }`, { cause: error }
     );
   }
@@ -601,7 +600,7 @@ function checkAdminStatus(
 ): boolean {
   if (status._ === "chatMemberStatusCreator") return true;
   if (status._ === "chatMemberStatusAdministrator") {
-    const adminStatus = status as chatMemberStatusAdministrator;
+    const adminStatus = status
     if (rights) {
       return Object.entries(rights).every(([key, value]) => {
         if (value) {
@@ -733,6 +732,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
       for (let i = 0; i < node.children.length; i++) {
         const child = node.children[i];
+        if (!child) continue;
         const content = toTelegram(child, original);
 
         if (content) {
@@ -742,12 +742,12 @@ function toTelegram(node: Node | RootContent, original = ""): string {
             const nextChild = node.children[i + 1];
 
             if (
-              (child.type === "paragraph" || child.type === "heading") &&
-              nextChild.type !== "blockquote"
+              (child && child.type === "paragraph" || child && child.type === "heading") &&
+              nextChild && nextChild.type !== "blockquote"
             ) {
               results.push("");
             }
-            else if (child.type === "blockquote") {
+            else if (child && child.type === "blockquote") {
               results.push("");
             }
           }
@@ -769,7 +769,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
         let hasInterruption = false;
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
-          if (line.trim() && !line.trimStart().startsWith(">")) {
+          if (line && line.trim() && !line.trimStart().startsWith(">")) {
             hasInterruption = true;
             break;
           }
@@ -807,7 +807,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
                   const textWithoutMarker = quoteText.replace(/\|\|[\s]*$/, "");
                   const formattedQuote = toTelegram(
-                    remark().use(remarkGfm).parse(textWithoutMarker) as Root,
+                    remark().use(remarkGfm).parse(textWithoutMarker),
                     textWithoutMarker
                   );
                   parts.push(
@@ -818,7 +818,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
                   );
                 } else {
                   const formattedQuote = toTelegram(
-                    remark().use(remarkGfm).parse(quoteText) as Root,
+                    remark().use(remarkGfm).parse(quoteText),
                     quoteText
                   );
 
@@ -834,7 +834,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
               }
 
               const formattedLine = toTelegram(
-                remark().use(remarkGfm).parse(line) as Root,
+                remark().use(remarkGfm).parse(line),
                 line
               );
               parts.push(formattedLine);
@@ -855,7 +855,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
               const textWithoutMarker = quoteText.replace(/\|\|[\s]*$/, "");
               const formattedQuote = toTelegram(
-                remark().use(remarkGfm).parse(textWithoutMarker) as Root,
+                remark().use(remarkGfm).parse(textWithoutMarker),
                 textWithoutMarker
               );
               parts.push(
@@ -866,7 +866,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
               );
             } else {
               const formattedQuote = toTelegram(
-                remark().use(remarkGfm).parse(quoteText) as Root,
+                remark().use(remarkGfm).parse(quoteText),
                 quoteText
               );
               parts.push(
@@ -906,7 +906,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 
         const parts = contentWithoutMark.split(separator);
 
-        const visiblePart = parts[0];
+        const visiblePart = parts[0] ?? "";
         const hiddenPart = parts.slice(1).join(separator);
 
 
@@ -1048,7 +1048,7 @@ function toTelegram(node: Node | RootContent, original = ""): string {
 }
 
 // --- 3. 主导出函数 ---
-export async function mdToTelegram(mdText: string): Promise<string> {
-  const tree = remark().use(remarkGfm).parse(mdText) as Root;
-  return toTelegram(tree, mdText).trim();
+export function mdToTelegram(mdText: string): Promise<string> {
+  const tree = remark().use(remarkGfm).parse(mdText);
+  return Promise.resolve(toTelegram(tree, mdText).trim());
 }

@@ -98,7 +98,7 @@ if (logLevel === "debug" || logLevel === "trace") {
 const logger = pino(
   {
     level: logLevel,
-    base: undefined,
+    base: null,
     transport: {
       targets: transportTargets
     }
@@ -108,3 +108,4 @@ const logger = pino(
 logger.info(`日志初始化完成 - Level: ${logLevel}`);
 
 export default logger;
+

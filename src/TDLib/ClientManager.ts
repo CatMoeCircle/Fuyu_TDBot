@@ -106,7 +106,7 @@ export class ClientManager {
           await this.client?.loginAsBot(token);
           return;
         } else if (type === "qr") {
-          client.invoke({ _: "requestQrCodeAuthentication" });
+          await client.invoke({ _: "requestQrCodeAuthentication" });
         } else {
           // 2. 如果是 User → 输入手机号
           const phone = await input({
@@ -142,8 +142,8 @@ export class ClientManager {
             _: "checkAuthenticationCode",
             code,
           });
-        } catch (err: any) {
-          if (err?.message === "INPUT_TIMEOUT") {
+        } catch (err) {
+          if (typeof err === "object" && err !== null && "message" in err && err.message === "INPUT_TIMEOUT") {
             logger.warn(`验证码输入已超时 (${timeoutSec}s)，请重试`);
           } else {
             logger.error(err, "输入验证码时出错：");
@@ -165,7 +165,7 @@ export class ClientManager {
             _: "checkAuthenticationPassword",
             password: passwordStr,
           });
-        } catch (err: any) {
+        } catch (err) {
           logger.error(err, "输入密码时出错：");
         }
       }
@@ -212,7 +212,7 @@ export class ClientManager {
         return false;
       }
     };
-    loginState(state);
+    await loginState(state);
     for await (const update of client.iterUpdates()) {
       if (update._ === "updateAuthorizationState") {
         const done = await loginState(update.authorization_state);

@@ -170,7 +170,7 @@ export async function sendMessageAlbum(
     try {
       return await Promise.race([sendPromise, timeoutPromise]);
     } finally {
-      if (timer !== undefined) clearTimeout(timer as any);
+      if (timer !== undefined) clearTimeout(timer);
     }
   } catch (error) {
     const err = error as Error;

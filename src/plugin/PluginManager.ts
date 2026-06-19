@@ -46,7 +46,7 @@ export class PluginManager {
     for (const [runName, def] of Object.entries(instance.runHandlers)) {
       try {
         if (def.immediate) {
-          (async () => {
+          void (async () => {
             try {
               await def.handler();
             } catch (e) {
@@ -80,15 +80,16 @@ export class PluginManager {
             )
           }
         } else if (def.intervalMs && def.intervalMs > 0) {
-          const t = setInterval(async () => {
-            try {
-              await def.handler();
-            } catch (e) {
-              logger.error(e,
-                `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`
-              );
-            }
+          const t = setInterval(() => {
+            void (async () => {
+              try {
+                await def.handler();
+              } catch (e) {
+                logger.error(e, `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`);
+              }
+            })();
           }, def.intervalMs);
+
           timers.set(runName, t);
         }
       } catch (e) {

@@ -19,7 +19,7 @@ export default async function setAdmin(
 ) {
   try {
     if (!args || args.length === 0) {
-      sendMessage(client, update.message.chat_id, {
+      await sendMessage(client, update.message.chat_id, {
         text: "当前使用方法\n/admin <password> - 设置超级管理员password在服务器开启日志中会显示\n/admin add <user_id> - 设置管理员\n/admin clear <user_id> - 撤销管理员",
       });
       return;
@@ -192,7 +192,7 @@ export default async function setAdmin(
         });
         return;
       }
-      let admins = [];
+      const admins = [];
 
       for (const id of adminList) {
         const user = await getUser(client, id);
@@ -226,7 +226,7 @@ export default async function setAdmin(
           quality: 1.5,
         },
         await fs.readFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "./vue/admins.vue"), "utf-8"),
-        admins
+        { admins }
       );
 
       if (result?.file_id && result.hash) {
@@ -247,14 +247,16 @@ export default async function setAdmin(
 
           // 180秒后自动删除消息
           if (sentMessage) {
-            setTimeout(async () => {
-              if (await isGroup(client, update.message.chat_id)) {
-                // 如果是群聊，删除原消息
-                deleteMessage(client, update.message.chat_id, [
-                  sentMessage.id,
-                  update.message.id,
-                ]);
-              }
+            setTimeout(() => {
+              void (async () => {
+                if (await isGroup(client, update.message.chat_id)) {
+                  // 如果是群聊，删除原消息
+                  await deleteMessage(client, update.message.chat_id, [
+                    sentMessage.id,
+                    update.message.id,
+                  ]);
+                }
+              })();
             }, 180000);
           }
           return;
@@ -278,21 +280,24 @@ export default async function setAdmin(
 
       // 180秒后自动删除消息
       if (resultmeg) {
-        setTimeout(async () => {
-          if (await isGroup(client, update.message.chat_id)) {
-            // 如果是群聊，删除原消息
-            deleteMessage(client, update.message.chat_id, [
-              resultmeg.id,
-              update.message.id,
-            ]);
-          }
+        setTimeout(() => {
+          void (async () => {
+            if (await isGroup(client, update.message.chat_id)) {
+              // 如果是群聊，删除原消息
+              await deleteMessage(client, update.message.chat_id, [
+                resultmeg.id,
+                update.message.id,
+              ]);
+            }
+          })();
         }, 180000);
       }
 
       // 保存 file_id 到缓存
       if (resultmeg && resultmeg.content._ === "messagePhoto" && result.hash) {
-        const file_id =
-          resultmeg.content.photo.sizes.slice(-1)[0].photo.remote.id;
+        const lastSize = resultmeg.content.photo.sizes.slice(-1)[0];
+        if (!lastSize) return;
+        const file_id = lastSize.photo.remote.id;
         try {
           await updateImgCache(result.hash, file_id);
           logger.debug("已缓存帮助图片 file_id");

@@ -10,25 +10,20 @@ async function main() {
     const client = await initTdlib();
 
     // 加载插件
-    const pluginManager = await loadPlugins(client);
+    await loadPlugins(client);
 
     logger.info("Bot启动完成");
 
     // 在程序退出时清理插件
-    process.on("SIGINT", async () => {
-      logger.info("Bot正在关闭...");
+    process.on("SIGINT", () => {
+      void (async () => {
+        logger.info("Bot正在关闭...");
 
-      for (const plugin of pluginManager.getPlugins()) {
-        try {
-          await pluginManager.unloadPlugin(plugin.name);
-        } catch (error) {
-          logger.error(error, `卸载插件 ${plugin.name} 时出错:`);
-        }
-      }
-      await client.close();
-      logger.info("所有插件已卸载");
-      logger.info("清理完成，Bot已安全关闭");
-      process.exit(0);
+        await client.close();
+
+        logger.info("清理完成，Bot已关闭");
+        process.exit(0);
+      })();
     });
   } catch (error) {
     logger.error(error, "Bot启动失败:");

@@ -12,6 +12,7 @@ import type { MessageDSL, InlineResult } from "../types/inline.d.ts";
 import { buildInputMessageContent, buildReplyMarkup } from "./message.ts";
 import { parseTextEntities } from "./index.ts";
 import logger from "@log/index.ts";
+import type { InputMessageContent$Input } from "tdlib-types"
 
 /**
  * 将 MessageDSL 转换为 TDLib InputMessageContent
@@ -22,7 +23,7 @@ import logger from "@log/index.ts";
 export async function toInputMessageContent(
     client: Client,
     msg: MessageDSL
-): Promise<any> {
+): Promise<InputMessageContent$Input | undefined> {
     if (msg.media) {
         return buildInputMessageContent(client, msg.text, msg.media);
     }

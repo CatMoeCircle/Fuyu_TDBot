@@ -23,9 +23,9 @@ export default async function config(
   const isAdmin =
     userId &&
     (userId === configData?.super_admin ||
-      (configData?.admin ?? []).includes(userId));
+      (configData?.admin || []).includes(userId));
   if (!isAdmin) {
-    sendMessage(client, chatId, {
+    await sendMessage(client, chatId, {
       text: "❌ 你没有权限使用该命令",
     });
     return;
@@ -67,7 +67,7 @@ export default async function config(
     return;
   }
 
-  const operation = args[0].toLowerCase();
+  const operation = args[0]!.toLowerCase();
 
   switch (operation) {
     case "list":
@@ -83,7 +83,7 @@ export default async function config(
         });
         return;
       }
-      await handleSetConfig(client, chatId, args[1], args.slice(2));
+      await handleSetConfig(client, chatId, args[1]!, args.slice(2));
       break;
     case "delete":
       if (args.length < 2) {
@@ -92,7 +92,7 @@ export default async function config(
         });
         return;
       }
-      await handleDeleteConfig(client, chatId, args[1]);
+      await handleDeleteConfig(client, chatId, args[1]!);
       break;
     case "permission":
       if (args.length < 4) {
@@ -101,7 +101,7 @@ export default async function config(
         });
         return;
       }
-      await handleSetPermission(client, chatId, args[1], args[2], args[3]);
+      await handleSetPermission(client, chatId, args[1]!, args[2]!, args[3]!);
       break;
     default:
       await sendMessage(client, chatId, {
@@ -467,7 +467,7 @@ async function handleSetPermission(
 
     // 如果只有一个场景或包含 all，使用字符串；否则使用数组
     if (scopeParts.length === 1 || scopeParts.includes("all")) {
-      scope = scopeParts[0];
+      scope = scopeParts[0]!;
     } else {
       scope = scopeParts;
     }
