@@ -89,7 +89,6 @@ export async function sendMessage(
     };
 
     // 发送消息
-    console.log(payload);
 
     const oldMessage = await client.invoke({ ...payload, ...invoke });
 
