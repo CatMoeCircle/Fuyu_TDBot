@@ -283,7 +283,6 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           tips: "提示：发送 /help text 获取文本格式帮助信息",
         }
       );
-      logger.info(data);
       // 检查缓存是否存在且数据未变化
       if (pngMetadata?.file_id && pngMetadata.hash) {
         logger.debug("使用缓存的帮助图片 file_id");
