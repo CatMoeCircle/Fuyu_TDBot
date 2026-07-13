@@ -278,7 +278,7 @@ export function createHelpHandler(client: Client, plugins: PluginInfo[]) {
           title: "帮助",
           description: "Fuyu_TDBot - 帮助命令列表",
           data,
-          imgSrc: null,
+          imgSrc: bgImageBase64,
           version: `Fuyu_TDBot - v${process.env.APP_VERSION || "0.0.0"}`,
           tips: "提示：发送 /help text 获取文本格式帮助信息",
         }

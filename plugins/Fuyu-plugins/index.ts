@@ -22,9 +22,9 @@ export default class FuyuPlugins extends Plugin {
       },
       start: {
         description: "处理 /start 命令",
-        handler: async (updateNewMessage, _args) => {
+        handler: async (updateNewMessage, args) => {
           const { default: Start } = await import("./cmd/start.ts");
-          return Start(updateNewMessage, this.client);
+          return Start(updateNewMessage, this.client, api.getPlugins(), args);
         },
       },
       admin: {

@@ -21,6 +21,7 @@ import type {
   InlineScope,
 } from "@TDLib/types/inline.ts";
 import { toTdInlineResults } from "@TDLib/function/inlineAdapter.ts";
+import { buildBotStartInlineButton } from "@plugin/inlineTools.ts";
 
 export class PluginManager {
   private plugins: Map<string, PluginInfo> = new Map();
@@ -1183,65 +1184,14 @@ export class PluginManager {
 
     // 第二步：如果查询为空，列出所有可用工具
     if (!queryText.trim()) {
-      logger.debug(`[插件管理] 查询为空，生成可用工具列表`);
-      const toolResults: InlineResult[] = [];
+      logger.debug(`[插件管理] 查询为空，返回 botstart 按钮`);
 
-      for (const pluginInfo of this.plugins.values()) {
-        const handlers = pluginInfo.instance.inlineHandlers || {};
-
-        for (const [handlerName, inlineDef] of Object.entries(handlers)) {
-          try {
-            // 权限和范围校验
-            const inScope = this.isInlineInScope(
-              inlineDef.scope,
-              ctx.chat_type,
-              ctx.role ?? "user"
-            );
-
-            if (!inScope) {
-              logger.debug(
-                `[插件管理] ${pluginInfo.name}.${handlerName} 不在使用范围内`
-              );
-              continue;
-            }
-
-            const hasPermission = this.hasInlinePermission(
-              inlineDef.permission || "all",
-              ctx.role ?? "user"
-            );
-
-            if (!hasPermission) {
-              logger.debug(
-                `[插件管理] ${pluginInfo.name}.${handlerName} 权限不足`
-              );
-              continue;
-            }
-
-            toolResults.push({
-              type: "article",
-              id: `tool_${pluginInfo.name}_${handlerName}`.slice(0, 64),
-              title: handlerName,
-              description: inlineDef.description || "无介绍",
-              message: {
-                text: `📌 可用工具: **${handlerName}**\n🔌 插件: ${pluginInfo.name}\n📝 说明: ${inlineDef.description || "无"}`,
-              },
-            });
-          } catch (e) {
-            logger.error(
-              e,
-              `[插件管理] 生成工具列表失败: ${pluginInfo.name}.${handlerName}`,
-            );
-          }
-        }
-      }
-
-      // 转换并发送
-      const tdResults = await toTdInlineResults(this.client, toolResults);
       await this.client
         .invoke({
           _: "answerInlineQuery",
           inline_query_id: inlineQueryId,
-          results: tdResults,
+          button: buildBotStartInlineButton(),
+          results: [],
           is_personal: true,
           cache_time: 0,
         })
