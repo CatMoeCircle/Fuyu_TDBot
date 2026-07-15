@@ -14,11 +14,11 @@ export default async function Start(
   plugins: PluginInfo[] = [],
   args: string[] = []
 ) {
-  if (
-    updateNewMessage.message.content._ !== "messageText" ||
-    !updateNewMessage.message.content.text.text?.trim().startsWith("/start")
-  )
-    return;
+  if (updateNewMessage.message.content._ !== "messageText") return;
+
+  const rawText = updateNewMessage.message.content.text.text?.trim() ?? "";
+  if (!rawText.startsWith("/start")) return;
+  if (/^\/start(?:@\S+)?\s+/.test(rawText)) return;
 
   const startArgs = args[0] || "";
 
