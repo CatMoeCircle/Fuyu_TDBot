@@ -1,16 +1,22 @@
 import { initTdlib } from "@function/tdlib.ts";
 import { loadPlugins } from "@function/plugins.ts";
 import logger from "@log/index.ts";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+process.on("unhandledRejection", (reason) => {
+  logger.error(reason, "未捕获的 Promise 异常:");
+});
 
 async function main() {
   try {
     logger.info("Bot启动中...");
 
     // 初始化 TDLib 并登录
-    const client = await initTdlib();
+    const { client, flushUpdateBuffer } = await initTdlib();
 
-    // 加载插件
-    await loadPlugins(client);
+    await loadPlugins(client, flushUpdateBuffer);
 
     logger.info("Bot启动完成");
 

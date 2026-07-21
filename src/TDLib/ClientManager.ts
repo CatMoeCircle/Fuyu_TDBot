@@ -4,7 +4,7 @@ import { select, input, password } from "@inquirer/prompts";
 import os from "os";
 import si from "systeminformation";
 import type { Client } from "tdl";
-import type { AuthorizationState } from "tdlib-types";
+import type { AuthorizationState, user, Update } from "tdlib-types";
 import qrcode from "qrcode-terminal";
 import logger from "@log/index.ts";
 
@@ -39,7 +39,32 @@ export class ClientManager {
       },
     });
 
-    return this.client;
+    this.client.on("error", (err) => {
+      logger.error(err, "TDLib 客户端错误:");
+    });
+
+    this.client.on("update", (update) => {
+      if (this.updateBuffer) {
+        this.updateBuffer.push(update);
+      }
+    });
+
+    return this.client;    
+  }
+
+  /**
+   * 回放缓存的 update 并切换为直通模式
+   * @param handler 插件就绪后的 update 处理函数
+   */
+  flushUpdateBuffer(handler: (update: Update) => Promise<void>): void {
+    const buffer = this.updateBuffer ?? [];
+    this.updateBuffer = null; // 切换直通，后续 update 不再进入缓存
+
+    for (const update of buffer) {
+      handler(update).catch((err) => {
+        logger.error(err, "[Update缓存] 回放 update 时出错:");
+      });
+    }
   }
 
   getClient(): Client {
@@ -55,32 +80,7 @@ export class ClientManager {
 
     if (state._ === "authorizationStateReady") {
       const me = await this.client?.invoke({ _: "getMe" });
-
-      if (me) {
-        // 保存用户信息到数据库
-        const { upsertConfig } = await import("@db/config.ts");
-        await upsertConfig("me", {
-          info: me,
-        });
-
-        if (me.usernames && me.type._ === "userTypeBot") {
-          logger.info(
-            `Bot 已登录: ${me.first_name}${me.last_name} (@${me.usernames.active_usernames[0]} - ID:${me.id})`
-          );
-          await upsertConfig("bot", {
-            account_type: false,
-          });
-        }
-        if (me.usernames && me.type._ === "userTypeRegular") {
-          logger.info(
-            `用户 ${me.first_name}${me.last_name} 已登录: (@${me.usernames.active_usernames[0] || null
-            } - ID:${me.id})`
-          );
-          await upsertConfig("bot", {
-            account_type: true,
-          });
-        }
-      }
+      if (me) await this.saveMeInfo(me);
       return;
     }
 
@@ -181,32 +181,7 @@ export class ClientManager {
       }
       if (authorization_state._ === "authorizationStateReady") {
         const me = await this.client?.invoke({ _: "getMe" });
-
-        if (me) {
-          // 保存用户信息到数据库
-          const { upsertConfig } = await import("@db/config.ts");
-          await upsertConfig("me", {
-            info: me,
-          });
-
-          if (me.usernames && me.type._ === "userTypeBot") {
-            logger.info(
-              `Bot 已登录: ${me.first_name}${me.last_name} (@${me.usernames.active_usernames[0]} - ID:${me.id})`
-            );
-            await upsertConfig("bot", {
-              account_type: false,
-            });
-          }
-          if (me.usernames && me.type._ === "userTypeRegular") {
-            logger.info(
-              `用户 ${me.first_name}${me.last_name} 已登录: (@${me.usernames.active_usernames[0] || null
-              } - ID:${me.id})`
-            );
-            await upsertConfig("bot", {
-              account_type: true,
-            });
-          }
-        }
+        if (me) await this.saveMeInfo(me);
         return true;
       } else {
         return false;
@@ -220,5 +195,33 @@ export class ClientManager {
       }
     }
     return;
+  }
+
+  /**
+   * 保存当前登录用户信息到数据库并输出登录日志
+   */
+  private async saveMeInfo(me: user): Promise<void> {
+    const { upsertConfig } = await import("@db/config.ts");
+    await upsertConfig("me", { info: me });
+
+    if (me.usernames) {
+      const isBot = me.type._ === "userTypeBot";
+      const username = me.usernames.active_usernames?.[0] ?? null;
+      const displayName = `${me.first_name ?? ""}${me.last_name ?? ""}`;
+
+      if (isBot) {
+        logger.info(
+          `Bot 已登录: ${displayName} (@${username} - ID:${me.id})`
+        );
+      } else {
+        logger.info(
+          `用户 ${displayName} 已登录: (@${username} - ID:${me.id})`
+        );
+      }
+
+      await upsertConfig("bot", {
+        account_type: !isBot,
+      });
+    }
   }
 }
