@@ -65,6 +65,8 @@ export async function restrictUser(
           can_send_polls: false,
           can_send_other_messages: false,
           can_add_link_previews: false,
+          can_react_to_messages: false,
+          can_edit_tag: false,
           can_change_info: false,
           can_invite_users: false,
           can_pin_messages: false,
@@ -141,6 +143,8 @@ export async function setUserAsMember(
  * | `can_send_polls?`          | 发送投票         |
  * | `can_send_other_messages?` | 发送动画、游戏、贴纸、骰子，以及使用内联机器人         |
  * | `can_add_link_previews?`   | 给消息添加链接预览                       |
+ * | `can_react_to_messages?`   | 对消息做出反应                       |
+ * | `can_edit_tag?`            | 修改自己的标签                       |
  * | `can_change_info?`         | 修改群信息（头像、标题等）                   |
  * | `can_invite_users?`        | 邀请新用户加入群                        |
  * | `can_pin_messages?`        | 置顶消息                            |
