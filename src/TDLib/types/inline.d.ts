@@ -229,6 +229,9 @@ export type InlineResultSet = {
  * 接收 InlineContext，返回 InlineResult
  */
 export interface InlineDef {
+    /** 工具名称（用于 UI / help 显示） */
+    name: string;
+
     /** 功能描述（用于 UI / help） */
     description: string;
 

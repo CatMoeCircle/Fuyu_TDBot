@@ -5,6 +5,7 @@ import type { inlineQueryResultsButton$Input } from "tdlib-types";
 export type InlineToolEntry = {
     pluginName: string;
     handlerName: string;
+    name: string;
     description: string;
 };
 
@@ -34,6 +35,7 @@ export function collectInlineToolEntries(
             entries.push({
                 pluginName: pluginInfo.name,
                 handlerName,
+                name: inlineDef.name,
                 description: inlineDef.description || "无介绍",
             });
         }
@@ -50,7 +52,7 @@ export function renderInlineToolListText(entries: InlineToolEntry[]): string {
     const lines = ["可用内联工具："];
 
     for (const entry of entries) {
-        lines.push(`• ${entry.pluginName}.${entry.handlerName} - ${entry.description}`);
+        lines.push(`• ${entry.name} - ${entry.description}`);
     }
 
     return lines.join("\n");
