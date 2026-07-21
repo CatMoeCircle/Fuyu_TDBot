@@ -59,10 +59,10 @@ export function renderInlineToolListText(entries: InlineToolEntry[]): string {
 export function buildBotStartInlineButton(): inlineQueryResultsButton$Input {
     return {
         _: "inlineQueryResultsButton",
-        text: "botstart",
+        text: "内联工具帮助",
         type: {
             _: "inlineQueryResultsButtonTypeStartBot",
-            parameter: "botstart",
+            parameter: "inlinehelp",
         },
     };
 }
