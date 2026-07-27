@@ -21,7 +21,6 @@ export default async function Start(
 
   const startArgs = args[0] || "";
 
-  // 如果没有参数，显示欢迎消息
   if (!startArgs) {
     try {
       const { getConfig } = await import("@db/config.ts");
