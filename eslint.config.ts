@@ -38,6 +38,7 @@ export default [
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      '@typescript-eslint/no-redundant-type-constituents': 'off'
     },
   },
 ];

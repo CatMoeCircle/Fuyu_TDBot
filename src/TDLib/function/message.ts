@@ -749,22 +749,25 @@ export async function buildInputMessageContent(
   } else if ("sticker" in media) {
     input_message_content = {
       _: "inputMessageSticker",
-      sticker: toTdInputFile(media.sticker),
-      ...(media.thumbnail !== undefined
-        ? {
-          thumbnail: {
-            _: "inputThumbnail",
-            thumbnail: toTdInputFile({
-              path: media.thumbnail.thumbnail.path,
-              id: media.thumbnail.thumbnail.url,
-            }),
-            width: media.thumbnail.width,
-            height: media.thumbnail.height,
-          },
-        }
-        : {}),
-      width: media.width,
-      height: media.height,
+      sticker: {
+        _: "inputSticker",
+        sticker: toTdInputFile(media.sticker),
+        ...(media.thumbnail !== undefined
+          ? {
+            thumbnail: {
+              _: "inputThumbnail",
+              thumbnail: toTdInputFile({
+                path: media.thumbnail.thumbnail.path,
+                id: media.thumbnail.thumbnail.url,
+              }),
+              width: media.thumbnail.width,
+              height: media.thumbnail.height,
+            },
+          }
+          : {}),
+        width: media.width,
+        height: media.height,
+      },
       emoji: media.emoji,
     };
   }
