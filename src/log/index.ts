@@ -38,7 +38,7 @@ const transportTargets = [];
 // 开发环境：控制台美化输出
 if (isDev) {
   transportTargets.push({
-    level: "info",
+    level: logLevel,
     target: "pino-pretty",
     options: {
       colorize: true,
