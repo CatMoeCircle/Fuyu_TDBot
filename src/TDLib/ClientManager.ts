@@ -10,6 +10,7 @@ import logger from "@log/index.ts";
 
 export class ClientManager {
   private client: Client | null = null;
+  private updateBuffer: Update[] | null = [];
 
   async init(): Promise<Client> {
     if (this.client) return this.client;
@@ -49,7 +50,7 @@ export class ClientManager {
       }
     });
 
-    return this.client;    
+    return this.client;
   }
 
   /**
