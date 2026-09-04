@@ -99,7 +99,7 @@ export async function sendMessage(
       }, timeout * 1000);
     });
 
-    // 等待发送成功的更新
+    // 等待发送成功或失败的更新
     const sendPromise = (async () => {
       for await (const update of client.iterUpdates()) {
         if (
@@ -108,6 +108,12 @@ export async function sendMessage(
           update.message.chat_id === oldMessage.chat_id
         )
           return update.message;
+        if (
+          update._ === "updateMessageSendFailed" &&
+          update.old_message_id === oldMessage.id &&
+          update.message.chat_id === oldMessage.chat_id
+        )
+          throw new Error(`消息发送失败: ${update.error.message} (${update.error.code})`);
       }
     })();
 
@@ -231,6 +237,12 @@ export async function sendMessageAlbum(
           oldIds.delete(update.old_message_id);
           if (oldIds.size === 0) return collected;
         }
+        if (
+          update._ === "updateMessageSendFailed" &&
+          oldIds.has(update.old_message_id) &&
+          update.message.chat_id === chat_id
+        )
+          throw new Error(`消息发送失败: ${update.error.message} (${update.error.code})`);
       }
     })();
 
