@@ -9,7 +9,7 @@ import type {
   CommandScope,
   CommandPermission,
   PluginInfo,
-} from "@plugin/BasePlugin.ts";
+} from "@fuyu-tdbot/plugin-api";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";

@@ -1,0 +1,31 @@
+{
+  "name": "@fuyu-tdbot/plugin-api",
+  "version": "0.1.0",
+  "description": "FuyuBot plugin contract: BasePlugin, command/update/run types",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./base": {
+      "types": "./src/BasePlugin.ts",
+      "default": "./src/BasePlugin.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "tdl": "^8.0.0",
+    "tdlib-types": "*"
+  },
+  "devDependencies": {
+    "tdl": "^8.0.2",
+    "tdlib-types": "*",
+    "typescript": "^6.0.3"
+  }
+}

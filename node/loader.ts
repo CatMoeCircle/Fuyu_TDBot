@@ -22,7 +22,16 @@ export async function resolve(
       "@function/": "src/function/",
       "@utils/": "src/utils/",
       "@db/": "src/Database/",
+      "@fuyu-tdbot/plugin-api/": "packages/plugin-api/src/",
     };
+
+    if (specifier === "@fuyu-tdbot/plugin-api") {
+      const resolvedUrl = new URL(
+        "packages/plugin-api/src/index.ts",
+        new URL("../", import.meta.url)
+      ).href;
+      return { url: resolvedUrl, shortCircuit: true };
+    }
 
     for (const [alias, actualPath] of Object.entries(aliasMap)) {
       if (specifier.startsWith(alias)) {

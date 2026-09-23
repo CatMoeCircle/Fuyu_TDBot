@@ -2,7 +2,7 @@ import type { Client } from "tdl";
 import logger from "@log/index.ts";
 import { sendMessage } from "@TDLib/function/message.ts";
 import type { updateNewMessage } from "tdlib-types";
-import type { PluginInfo } from "@plugin/BasePlugin.ts";
+import type { PluginInfo } from "@fuyu-tdbot/plugin-api";
 import {
   collectInlineToolEntries,
   renderInlineToolListText,

@@ -8,23 +8,42 @@ import type {
     PluginInfo,
     ImportedModule,
     PluginAPI,
-} from "./BasePlugin.ts";
-import { Plugin as BasePlugin } from "./BasePlugin.ts";
+    PackagePluginManifest,
+} from "@fuyu-tdbot/plugin-api";
+import { isPlugin, type Plugin as BasePlugin } from "@fuyu-tdbot/plugin-api";
 import { getConfig } from "@db/config.ts";
-import type { CommandDef } from "./BasePlugin.ts";
+import type { CommandDef } from "@fuyu-tdbot/plugin-api";
 import { setupPluginRuns, clearPluginRuns } from "./PluginScheduler.ts";
+
+/** 扫描分类后的包插件条目 */
+interface PackagePluginEntry {
+    kind: "package";
+    dir: string;
+    modulePath: string;
+    /** package.json 的 npm `name`（备用标识） */
+    packageName: string;
+    manifest: PackagePluginManifest;
+}
+
+/** 单文件 / 无 fuyuPlugin 清单的旧目录插件 */
+interface LegacyPluginEntry {
+    kind: "legacy";
+    modulePath: string;
+    /** true = 顶层单文件（最后加载）；false = 目录插件 */
+    singleFile: boolean;
+}
+
+type ScanEntry = PackagePluginEntry | LegacyPluginEntry;
 
 /**
  * 在目录中查找 index 文件
- * @param dir 目录路径
- * @returns index 文件路径或 null
  */
 export function findIndexFile(dir: string): string | null {
-    const indexFiles = ["index.ts"];
+    const indexFiles = ["index.ts", "index.js"];
 
     for (const indexFile of indexFiles) {
         const indexPath = path.join(dir, indexFile);
-        if (fs.existsSync(indexPath)) {
+        if (fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
             return indexPath;
         }
     }
@@ -32,8 +51,159 @@ export function findIndexFile(dir: string): string | null {
     return null;
 }
 
+/** 解析包插件入口：main → index.ts/js，并容忍 main 写成 .js 但源文件是 .ts */
+function resolvePackageEntry(dir: string, main?: string): string | null {
+    const candidates: string[] = [];
+    if (main && typeof main === "string") {
+        candidates.push(main);
+        if (main.endsWith(".js")) {
+            candidates.push(main.replace(/\.js$/, ".ts"));
+        }
+        if (main.endsWith(".mjs")) {
+            candidates.push(main.replace(/\.mjs$/, ".ts"));
+        }
+    }
+    candidates.push("index.ts", "index.js");
+
+    for (const rel of candidates) {
+        const abs = path.join(dir, rel);
+        if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+            return abs;
+        }
+    }
+    return null;
+}
+
+/** 读取禁用列表（在 import 之前调用） */
+async function getDisabledPluginNames(): Promise<Set<string>> {
+    const disabled = new Set<string>();
+    try {
+        const pluginsConfig = await getConfig("plugins");
+        if (pluginsConfig && Array.isArray(pluginsConfig.disabled)) {
+            for (const name of pluginsConfig.disabled) {
+                if (typeof name === "string" && name) disabled.add(name);
+            }
+        }
+    } catch (e) {
+        logger.debug(e, "[插件管理] 读取禁用列表失败，按空列表处理:");
+    }
+    return disabled;
+}
+
+/** 读取并校验 fuyuPlugin 清单；非法则返回 null（按旧目录插件处理） */
+function readPackageManifest(
+    dir: string
+): { manifest: PackagePluginManifest; packageName: string; raw: Record<string, unknown> } | null {
+    const pkgPath = path.join(dir, "package.json");
+    if (!fs.existsSync(pkgPath)) return null;
+
+    try {
+        const raw = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as Record<
+            string,
+            unknown
+        >;
+        const fuyu = raw.fuyuPlugin;
+        if (!fuyu || typeof fuyu !== "object") return null;
+
+        const m = fuyu as Partial<PackagePluginManifest>;
+        if (
+            typeof m.name !== "string" ||
+            !m.name ||
+            typeof m.type !== "string" ||
+            !m.type ||
+            typeof m.version !== "string" ||
+            !m.version ||
+            typeof m.description !== "string"
+        ) {
+            logger.warn(
+                `[插件管理] ${dir} 的 fuyuPlugin 字段不完整（需要 name/type/version/description），按旧目录插件加载`
+            );
+            return null;
+        }
+
+        const dependencies = Array.isArray(m.dependencies)
+            ? m.dependencies.filter((d): d is string => typeof d === "string" && !!d)
+            : [];
+
+        return {
+            manifest: {
+                name: m.name,
+                type: m.type,
+                version: m.version,
+                description: m.description,
+                dependencies,
+            },
+            packageName: typeof raw.name === "string" ? raw.name : path.basename(dir),
+            raw,
+        };
+    } catch (e) {
+        logger.warn(e, `[插件管理] 解析 ${dir}/package.json 失败，跳过包清单:`);
+        return null;
+    }
+}
+
 /**
- * 扫描并加载指定目录下的插件（只扫描顶层条目）
+ * 按依赖关系对包插件做拓扑排序（依赖在前）。
+ * 缺失依赖仅告警；环检测告警后仍输出可加载子集。
+ */
+function sortPackagePlugins(entries: PackagePluginEntry[]): PackagePluginEntry[] {
+    const byName = new Map<string, PackagePluginEntry>();
+    for (const e of entries) {
+        if (byName.has(e.manifest.name)) {
+            logger.warn(
+                `[插件管理] 重复的包插件名称 "${e.manifest.name}"（${e.dir}），后者忽略依赖图中的该名`
+            );
+            continue;
+        }
+        byName.set(e.manifest.name, e);
+    }
+
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+    const ordered: PackagePluginEntry[] = [];
+
+    const visit = (name: string, chain: string[]): void => {
+        if (visited.has(name)) return;
+        if (visiting.has(name)) {
+            logger.warn(
+                `[插件管理] 插件依赖循环: ${[...chain, name].join(" -> ")}`
+            );
+            return;
+        }
+        const entry = byName.get(name);
+        if (!entry) return;
+
+        visiting.add(name);
+        const deps = entry.manifest.dependencies ?? [];
+        for (const dep of deps) {
+            if (!byName.has(dep)) {
+                logger.warn(
+                    `[插件管理] 插件 "${name}" 依赖的插件 "${dep}" 不存在、未启用或被禁用`
+                );
+            }
+            visit(dep, [...chain, name]);
+        }
+        visiting.delete(name);
+        visited.add(name);
+        ordered.push(entry);
+    };
+
+    // 先按依赖声明顺序遍历，再保证无声明的插件也进入结果
+    for (const e of entries) {
+        visit(e.manifest.name, []);
+    }
+    return ordered;
+}
+
+/**
+ * 扫描并加载指定目录下的插件。
+ *
+ * 加载顺序：
+ * 1. 包插件（package.json 含 fuyuPlugin）— 按依赖拓扑排序
+ * 2. 目录插件（无 fuyuPlugin）— 保持扫描顺序
+ * 3. 顶层单文件插件 — 最后加载
+ *
+ * 禁用：包插件在读取 fuyuPlugin.name / package name 后、import 前排除。
  */
 export async function scanPluginDir(
     dir: string,
@@ -48,39 +218,118 @@ export async function scanPluginDir(
         return;
     }
 
+    const disabled = await getDisabledPluginNames();
     const dirents = fs.readdirSync(dir, { withFileTypes: true });
+
+    const packageEntries: PackagePluginEntry[] = [];
+    const legacyDirEntries: LegacyPluginEntry[] = [];
+    const legacyFileEntries: LegacyPluginEntry[] = [];
 
     for (const dirent of dirents) {
         const item = dirent.name;
-
         if (item.startsWith(".") || item === "node_modules") continue;
-
         const itemPath = path.join(dir, item);
 
         try {
-            let modulePath: string | null = null;
-
             if (dirent.isDirectory()) {
-                modulePath = findIndexFile(itemPath);
-            } else if (dirent.isFile()) {
-                if (/\.(ts|js)$/i.test(item)) {
-                    modulePath = itemPath;
-                }
-            }
+                const parsed = readPackageManifest(itemPath);
 
-            if (modulePath) {
-                await loadPlugin(
-                    modulePath,
-                    client,
-                    plugins,
-                    pluginRunTimers,
-                    createPluginApiFn
-                );
+                if (parsed) {
+                    const { manifest, packageName, raw } = parsed;
+                    // 读取包名阶段排除禁用插件 — 不 import，避免占用内存
+                    if (
+                        disabled.has(manifest.name) ||
+                        disabled.has(packageName) ||
+                        disabled.has(item)
+                    ) {
+                        logger.info(
+                            `[插件管理] 跳过已禁用包插件 "${manifest.name}"（未导入）`
+                        );
+                        continue;
+                    }
+
+                    const modulePath = resolvePackageEntry(
+                        itemPath,
+                        typeof raw.main === "string" ? raw.main : undefined
+                    );
+                    if (!modulePath) {
+                        logger.warn(
+                            `[插件管理] 包插件 "${manifest.name}" 未找到入口文件，跳过`
+                        );
+                        continue;
+                    }
+
+                    packageEntries.push({
+                        kind: "package",
+                        dir: itemPath,
+                        modulePath,
+                        packageName,
+                        manifest,
+                    });
+                    continue;
+                }
+
+                // 旧目录插件（无 fuyuPlugin）
+                const modulePath = findIndexFile(itemPath);
+                if (modulePath) {
+                    legacyDirEntries.push({
+                        kind: "legacy",
+                        modulePath,
+                        singleFile: false,
+                    });
+                }
+            } else if (dirent.isFile() && /\.(ts|js)$/i.test(item)) {
+                legacyFileEntries.push({
+                    kind: "legacy",
+                    modulePath: itemPath,
+                    singleFile: true,
+                });
             }
         } catch (e) {
-            logger.error(e, `[插件管理] 加载插件 ${item} 出错:`);
+            logger.error(e, `[插件管理] 扫描插件 ${item} 出错:`);
         }
     }
+
+    const orderedPackages = sortPackagePlugins(packageEntries);
+
+    // 1) 包插件（依赖在前）
+    for (const entry of orderedPackages) {
+        await loadPlugin(
+            entry.modulePath,
+            client,
+            plugins,
+            pluginRunTimers,
+            createPluginApiFn,
+            { packageManifest: entry.manifest }
+        );
+    }
+
+    // 2) 旧目录插件
+    for (const entry of legacyDirEntries) {
+        await loadPlugin(
+            entry.modulePath,
+            client,
+            plugins,
+            pluginRunTimers,
+            createPluginApiFn
+        );
+    }
+
+    // 3) 单文件插件最后加载
+    for (const entry of legacyFileEntries) {
+        await loadPlugin(
+            entry.modulePath,
+            client,
+            plugins,
+            pluginRunTimers,
+            createPluginApiFn
+        );
+    }
+}
+
+export interface LoadPluginOptions {
+    /** 包插件清单：构造后注入 name/type/version/description，并跳过类字段完整性校验 */
+    packageManifest?: PackagePluginManifest;
 }
 
 /**
@@ -91,8 +340,10 @@ export async function loadPlugin(
     client: Client,
     plugins: Map<string, PluginInfo>,
     pluginRunTimers: Map<string, Map<string, CronJob | NodeJS.Timeout>>,
-    createPluginApiFn: (modulePath: string) => PluginAPI
+    createPluginApiFn: (modulePath: string) => PluginAPI,
+    options: LoadPluginOptions = {}
 ) {
+    const { packageManifest } = options;
     const moduleURL = pathToFileURL(modulePath).href;
     let module: ImportedModule;
     try {
@@ -146,9 +397,17 @@ export async function loadPlugin(
         return;
     }
 
-    if (!(pluginInstance instanceof BasePlugin)) {
-        logger.warn(`[插件管理] 插件 ${modulePath} 未继承自 BasePlugin`);
+    if (!isPlugin(pluginInstance)) {
+        logger.warn(`[插件管理] 插件 ${modulePath} 未继承自 Plugin（缺少品牌标记）`);
         return;
+    }
+
+    // 包插件：元数据以 package.json 为准注入
+    if (packageManifest) {
+        pluginInstance.name = packageManifest.name;
+        pluginInstance.type = packageManifest.type;
+        pluginInstance.version = packageManifest.version;
+        pluginInstance.description = packageManifest.description;
     }
 
     // 为插件的命令定义设置默认 showInHelp = true
@@ -166,12 +425,14 @@ export async function loadPlugin(
                     d.showInHelp = true;
                 }
             } catch {
+                /* ignore */
             }
         }
     } catch {
+        /* ignore */
     }
 
-    // 检查必需属性
+    // 检查必需属性（包插件已从清单注入；单文件/旧目录仍要求类字段）
     if (
         !pluginInstance.name ||
         !pluginInstance.version ||
@@ -179,7 +440,8 @@ export async function loadPlugin(
         !pluginInstance.type
     ) {
         logger.warn(
-            `[插件管理] 插件 ${modulePath} 缺少必需属性 (name, version, description, type)`
+            `[插件管理] 插件 ${modulePath} 缺少必需属性 (name, version, description, type)` +
+                (packageManifest ? "" : "；单文件插件请在类上声明，或改为带 fuyuPlugin 的 package.json")
         );
         return;
     }
@@ -212,7 +474,7 @@ export async function loadPlugin(
         );
     }
 
-    // 检查插件是否在禁用列表中
+    // 检查插件是否在禁用列表中（包插件已在扫描阶段排除；此处覆盖旧插件与 reload）
     try {
         const pluginsConfig = await getConfig("plugins");
         if (pluginsConfig && Array.isArray(pluginsConfig.disabled)) {
@@ -224,8 +486,9 @@ export async function loadPlugin(
             }
         }
     } catch (e) {
-        logger.debug(e,
-            `[插件管理] 获取插件配置失败，允许插件 ${pluginInstance.name} 加载:`,
+        logger.debug(
+            e,
+            `[插件管理] 获取插件配置失败，允许插件 ${pluginInstance.name} 加载:`
         );
     }
 

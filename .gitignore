@@ -142,6 +142,9 @@ dist
 # Test files
 /test
 
+# Local tool state (CodeArts Doer / agent runtime)
+.codeartsdoer/
+
 # TDLib files
 /TDLib
 

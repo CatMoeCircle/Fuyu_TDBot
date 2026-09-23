@@ -5,8 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "node --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\" src/index.ts --debug",
+    "dev": "node --inspect --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\" src/index.ts --debug",
     "lint": "eslint .",
+    "verify:plugins": "node --experimental-strip-types --no-warnings scripts/verify-plugin-scan.ts",
     "start": "node --import \"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\" src/index.ts",
     "pm2:start": "pm2 start src/index.ts --name fuyu-tdbot --interpreter node --node-args=\"--import \\\"data:text/javascript,import { register } from 'node:module'; import { pathToFileURL } from 'node:url'; register('./node/loader.ts', pathToFileURL('./'))\\\"\"",
     "pm2:stop": "pm2 stop fuyu-tdbot",
@@ -28,7 +29,9 @@
     "typescript-eslint": "^8.59.0"
   },
   "dependencies": {
+    "@fuyu-tdbot/plugin-api": "workspace:*",
     "@inquirer/prompts": "^8.0.2",
+    "@prebuilt-tdlib/types": "0.1008067.0",
     "@resvg/resvg-js": "^2.6.2",
     "axios": "^1.13.5",
     "cron": "^4.3.5",
@@ -52,6 +55,7 @@
     "pm2": "^7.0.1"
   },
   "workspaces": [
-    "plugins/*"
+    "plugins/*",
+    "packages/*"
   ]
 }

@@ -27,10 +27,12 @@
       "@type/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],
       "@function/*": ["src/function/*"],
-      "@db/*": ["src/Database/*"]
+      "@db/*": ["src/Database/*"],
+      "@fuyu-tdbot/plugin-api": ["./packages/plugin-api/src/index.ts"],
+      "@fuyu-tdbot/plugin-api/*": ["./packages/plugin-api/src/*"]
     }
   },
 
-  "include": ["src", "plugins", "eslint.config.ts", "node/loader.ts"],
+  "include": ["src", "plugins", "packages", "eslint.config.ts", "node/loader.ts"],
   "exclude": ["node_modules", "dist"]
 }

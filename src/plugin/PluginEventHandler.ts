@@ -339,7 +339,9 @@ async function handleInlineQuery(
                     pluginName: pluginInfo.name,
                     handlerName,
                     priority,
-                    task: Promise.resolve(inlineDef.handler(ctx)),
+                    task: Promise.resolve(
+                        inlineDef.handler(ctx)
+                    ).then((r) => r as InlineResult[] | InlineResultSet),
                 });
             } catch (e) {
                 logger.error(

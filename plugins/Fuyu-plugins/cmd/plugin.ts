@@ -3,7 +3,7 @@ import { sendMessage } from "@TDLib/function/message.ts";
 import { isPrivate } from "@TDLib/function/index.ts";
 import logger from "@log/index.ts";
 import type { updateNewMessage } from "tdlib-types";
-import type { PluginAPI } from "@plugin/BasePlugin.ts";
+import type { PluginAPI } from "@fuyu-tdbot/plugin-api";
 
 export default async function plugin(
   updateNewMessage: updateNewMessage,

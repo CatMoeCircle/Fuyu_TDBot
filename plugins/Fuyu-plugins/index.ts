@@ -1,12 +1,9 @@
-import { Plugin } from "@plugin/BasePlugin.ts";
+import { Plugin, type PluginAPI } from "@fuyu-tdbot/plugin-api";
 import type { Client } from "tdl";
-import type { PluginAPI } from "@plugin/BasePlugin.ts";
 
 export default class FuyuPlugins extends Plugin {
-  type = "general";
-  name = "Fuyu-plugins";
-  version = "1.0.0";
-  description = "Fuyu自带默认插件";
+  // name/type/version/description 由 package.json 的 fuyuPlugin 注入
+
   constructor(client: Client, api: PluginAPI) {
     super(client);
 
