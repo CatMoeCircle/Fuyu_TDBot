@@ -25,7 +25,7 @@ interface PackagePluginEntry {
     manifest: PackagePluginManifest;
 }
 
-/** 单文件 / 无 fuyuPlugin 清单的旧目录插件 */
+/** 单文件 / 无 pluginType 清单的旧目录插件 */
 interface LegacyPluginEntry {
     kind: "legacy";
     modulePath: string;
@@ -90,7 +90,7 @@ async function getDisabledPluginNames(): Promise<Set<string>> {
     return disabled;
 }
 
-/** 读取并校验 fuyuPlugin 清单；非法则返回 null（按旧目录插件处理） */
+/** 读取并校验包插件清单（复用 name/version/description + pluginType/pluginDependencies）；非法则返回 null（按旧目录插件处理） */
 function readPackageManifest(
     dir: string
 ): { manifest: PackagePluginManifest; packageName: string; raw: Record<string, unknown> } | null {
@@ -102,38 +102,34 @@ function readPackageManifest(
             string,
             unknown
         >;
-        const fuyu = raw.fuyuPlugin;
-        if (!fuyu || typeof fuyu !== "object") return null;
+        // 包插件判定：声明了 pluginType
+        if (typeof raw.pluginType !== "string" || !raw.pluginType) return null;
 
-        const m = fuyu as Partial<PackagePluginManifest>;
-        if (
-            typeof m.name !== "string" ||
-            !m.name ||
-            typeof m.type !== "string" ||
-            !m.type ||
-            typeof m.version !== "string" ||
-            !m.version ||
-            typeof m.description !== "string"
-        ) {
+        const name = typeof raw.name === "string" ? raw.name : "";
+        const version = typeof raw.version === "string" ? raw.version : "";
+        const description = typeof raw.description === "string" ? raw.description : "";
+        const pluginType = raw.pluginType;
+
+        if (!name || !version || typeof raw.description !== "string") {
             logger.warn(
-                `[插件管理] ${dir} 的 fuyuPlugin 字段不完整（需要 name/type/version/description），按旧目录插件加载`
+                `[插件管理] ${dir} 的 package.json 字段不完整（需要 name/version/description/pluginType），按旧目录插件加载`
             );
             return null;
         }
 
-        const dependencies = Array.isArray(m.dependencies)
-            ? m.dependencies.filter((d): d is string => typeof d === "string" && !!d)
+        const pluginDependencies = Array.isArray(raw.pluginDependencies)
+            ? raw.pluginDependencies.filter((d): d is string => typeof d === "string" && !!d)
             : [];
 
         return {
             manifest: {
-                name: m.name,
-                type: m.type,
-                version: m.version,
-                description: m.description,
-                dependencies,
+                name,
+                version,
+                description,
+                pluginType,
+                pluginDependencies,
             },
-            packageName: typeof raw.name === "string" ? raw.name : path.basename(dir),
+            packageName: name || path.basename(dir),
             raw,
         };
     } catch (e) {
@@ -174,7 +170,7 @@ function sortPackagePlugins(entries: PackagePluginEntry[]): PackagePluginEntry[]
         if (!entry) return;
 
         visiting.add(name);
-        const deps = entry.manifest.dependencies ?? [];
+        const deps = entry.manifest.pluginDependencies ?? [];
         for (const dep of deps) {
             if (!byName.has(dep)) {
                 logger.warn(
@@ -199,11 +195,11 @@ function sortPackagePlugins(entries: PackagePluginEntry[]): PackagePluginEntry[]
  * 扫描并加载指定目录下的插件。
  *
  * 加载顺序：
- * 1. 包插件（package.json 含 fuyuPlugin）— 按依赖拓扑排序
- * 2. 目录插件（无 fuyuPlugin）— 保持扫描顺序
+ * 1. 包插件（package.json 含 pluginType）— 按依赖拓扑排序
+ * 2. 目录插件（无 pluginType）— 保持扫描顺序
  * 3. 顶层单文件插件 — 最后加载
  *
- * 禁用：包插件在读取 fuyuPlugin.name / package name 后、import 前排除。
+ * 禁用：包插件在读取 package.json name 后、import 前排除。
  */
 export async function scanPluginDir(
     dir: string,
@@ -269,7 +265,7 @@ export async function scanPluginDir(
                     continue;
                 }
 
-                // 旧目录插件（无 fuyuPlugin）
+                // 旧目录插件（无 pluginType）
                 const modulePath = findIndexFile(itemPath);
                 if (modulePath) {
                     legacyDirEntries.push({
@@ -405,7 +401,7 @@ export async function loadPlugin(
     // 包插件：元数据以 package.json 为准注入
     if (packageManifest) {
         pluginInstance.name = packageManifest.name;
-        pluginInstance.type = packageManifest.type;
+        pluginInstance.type = packageManifest.pluginType;
         pluginInstance.version = packageManifest.version;
         pluginInstance.description = packageManifest.description;
     }
@@ -441,7 +437,7 @@ export async function loadPlugin(
     ) {
         logger.warn(
             `[插件管理] 插件 ${modulePath} 缺少必需属性 (name, version, description, type)` +
-                (packageManifest ? "" : "；单文件插件请在类上声明，或改为带 fuyuPlugin 的 package.json")
+                (packageManifest ? "" : "；单文件插件请在类上声明，或改为带 pluginType 的 package.json")
         );
         return;
     }

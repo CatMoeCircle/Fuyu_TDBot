@@ -12,10 +12,10 @@ const pluginsDir = path.join(root, "plugins");
 
 type Manifest = {
   name: string;
-  type: string;
+  pluginType: string;
   version: string;
   description: string;
-  dependencies?: string[];
+  pluginDependencies?: string[];
 };
 
 function readManifest(dir: string): { manifest: Manifest; packageName: string } | null {
@@ -23,28 +23,26 @@ function readManifest(dir: string): { manifest: Manifest; packageName: string } 
   if (!fs.existsSync(pkgPath)) return null;
   try {
     const raw = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-    const fuyu = raw.fuyuPlugin;
-    if (!fuyu || typeof fuyu !== "object") return null;
+    if (typeof raw.pluginType !== "string" || !raw.pluginType) return null;
     if (
-      typeof fuyu.name !== "string" ||
-      !fuyu.name ||
-      typeof fuyu.type !== "string" ||
-      typeof fuyu.version !== "string" ||
-      typeof fuyu.description !== "string"
+      typeof raw.name !== "string" ||
+      !raw.name ||
+      typeof raw.version !== "string" ||
+      typeof raw.description !== "string"
     ) {
       return null;
     }
     return {
       manifest: {
-        name: fuyu.name,
-        type: fuyu.type,
-        version: fuyu.version,
-        description: fuyu.description,
-        dependencies: Array.isArray(fuyu.dependencies)
-          ? fuyu.dependencies.filter((d: unknown): d is string => typeof d === "string")
+        name: raw.name,
+        pluginType: raw.pluginType,
+        version: raw.version,
+        description: raw.description,
+        pluginDependencies: Array.isArray(raw.pluginDependencies)
+          ? raw.pluginDependencies.filter((d: unknown): d is string => typeof d === "string")
           : [],
       },
-      packageName: typeof raw.name === "string" ? raw.name : path.basename(dir),
+      packageName: raw.name,
     };
   } catch {
     return null;
@@ -89,7 +87,7 @@ for (const d of dirents) {
       packages.push({
         name: m.manifest.name,
         dir: d.name,
-        deps: m.manifest.dependencies ?? [],
+        deps: m.manifest.pluginDependencies ?? [],
       });
     } else {
       legacyDirs.push(d.name);
@@ -103,8 +101,8 @@ console.log("package plugins:", packages.map((p) => p.name));
 console.log("legacy dirs:", legacyDirs);
 console.log("single files (load last):", singleFiles);
 
-if (!packages.some((p) => p.name === "Ad Review")) {
-  console.error("FAIL: expected Ad Review package plugin from adblock");
+if (!packages.some((p) => p.name === "adblock")) {
+  console.error("FAIL: expected adblock package plugin");
   process.exit(1);
 }
 
@@ -120,11 +118,11 @@ if (ordered.join(",") !== "A,B,C") {
 }
 
 // disabled prefilter unit test (simulated)
-const disabled = new Set(["Ad Review"]);
+const disabled = new Set(["adblock"]);
 const wouldImport = packages.filter(
   (p) => !disabled.has(p.name) && !disabled.has(p.dir)
 );
-if (wouldImport.some((p) => p.name === "Ad Review")) {
+if (wouldImport.some((p) => p.name === "adblock")) {
   console.error("FAIL: disabled package still would be imported");
   process.exit(1);
 }

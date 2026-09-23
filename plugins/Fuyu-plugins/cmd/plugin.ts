@@ -228,8 +228,8 @@ async function handlePluginInfo(
       return;
     }
 
-    // 尝试在 Fuyu-plugins 中查找命令
-    const fuyuPlugin = api.getPlugin("Fuyu-plugins");
+    // 尝试在 fuyu-plugins 中查找命令
+    const fuyuPlugin = api.getPlugin("fuyu-plugins");
     if (fuyuPlugin && fuyuPlugin.instance.cmdHandlers[pluginName]) {
       const cmdDef = fuyuPlugin.instance.cmdHandlers[pluginName];
       let message = `⚙️ *系统命令信息*\n\n`;
@@ -238,7 +238,7 @@ async function handlePluginInfo(
         message += `📝 *描述:* ${cmdDef.description}\n`;
       }
       message += `✅ *状态:* 已加载\n`;
-      message += `🏷️ *类型:* 系统命令 (Fuyu-plugins)\n`;
+      message += `🏷️ *类型:* 系统命令 (fuyu-plugins)\n`;
 
       await sendMessage(client, chatId, {
         text: message,
@@ -338,9 +338,9 @@ async function handleDisablePlugin(
     }
 
     // 检查是否是系统插件，系统插件不能被禁用
-    if (plugin.instance.type === "general" && pluginName === "Fuyu-plugins") {
+    if (plugin.instance.type === "general" && pluginName === "fuyu-plugins") {
       await sendMessage(client, chatId, {
-        text: `❌ *无法禁用*\n\n无法禁用核心插件 Fuyu-plugins。`,
+        text: `❌ *无法禁用*\n\n无法禁用核心插件 fuyu-plugins。`,
       });
       return;
     }
@@ -416,9 +416,9 @@ async function handleDeletePlugin(
 ) {
   try {
     // 禁止删除系统命令或关键插件
-    if (pluginName === "Fuyu-plugins") {
+    if (pluginName === "fuyu-plugins") {
       await sendMessage(client, chatId, {
-        text: "❌ *无法删除*\n\n无法删除核心插件 Fuyu-plugins。",
+        text: "❌ *无法删除*\n\n无法删除核心插件 fuyu-plugins。",
       });
       return;
     }

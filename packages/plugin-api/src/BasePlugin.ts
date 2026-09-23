@@ -88,7 +88,7 @@ type UpdateHandlers = {
 /**
  * 插件基础抽象类。
  *
- * 包插件（带 `fuyuPlugin` 的 package.json）的 name/type/version/description
+ * 包插件（package.json 含 `pluginType`）的 name/type/version/description
  * 由框架从 package.json 注入；单文件/旧目录插件仍在类字段上声明。
  */
 export abstract class Plugin {
@@ -177,16 +177,28 @@ export interface PluginAPI {
   deletePlugin: (name: string) => Promise<boolean>;
 }
 
-/** package.json 中 `fuyuPlugin` 字段（以包为单位的插件清单）。 */
+/**
+ * 包插件清单：复用 package.json 标准字段，插件专有字段见下。
+ *
+ * ```json
+ * {
+ *   "name": "my-plugin",
+ *   "version": "1.0.0",
+ *   "description": "...",
+ *   "pluginType": "general",
+ *   "pluginDependencies": ["other-plugin"]
+ * }
+ * ```
+ */
 export interface PackagePluginManifest {
-  /** 插件名称（禁用列表、依赖声明、运行时 id） */
+  /** 复用 package.json `name`（禁用列表、依赖声明、运行时 id） */
   name: string;
-  /** 插件类型：user | bot | general */
-  type: string;
-  /** 插件版本 */
+  /** 复用 package.json `version` */
   version: string;
-  /** 插件描述 */
+  /** 复用 package.json `description` */
   description: string;
-  /** 依赖的其他插件名称（按依赖优先加载） */
-  dependencies?: string[];
+  /** 插件类型：`user` | `bot` | `general` */
+  pluginType: string;
+  /** 依赖的其他插件 name（按依赖优先加载） */
+  pluginDependencies?: string[];
 }
