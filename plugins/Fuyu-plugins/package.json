@@ -1,0 +1,19 @@
+{
+  "name": "Fuyu-plugins",
+  "version": "1.0.0",
+  "description": "Fuyu自带默认插件",
+  "main": "index.ts",
+  "type": "module",
+  "pluginType": "general",
+  "dependencies": {
+    "@fuyu-tdbot/plugin-api": "workspace:*"
+  },
+  "peerDependencies": {
+    "tdl": "^8.0.0",
+    "tdlib-types": "*"
+  },
+  "devDependencies": {
+    "tdl": "^8.0.2",
+    "tdlib-types": "*"
+  }
+}
