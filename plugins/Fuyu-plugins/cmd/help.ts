@@ -1,10 +1,6 @@
 import type { Client } from "tdl";
 import type { updateNewMessage } from "tdlib-types";
-import logger from "@log/index.ts";
-import { generateImage } from "@function/genImg.ts";
-import { sendMessage, deleteMessage } from "@TDLib/function/message.ts";
-import { updateImgCache } from "@db/update.ts";
-import { deleteImgCache } from "@db/delete.ts";
+import { deleteImgCache, deleteMessage, generateImage, logger, sendMessage, updateImgCache } from "@fuyu-tdbot/plugin-api";
 import type {
   CommandScope,
   CommandPermission,

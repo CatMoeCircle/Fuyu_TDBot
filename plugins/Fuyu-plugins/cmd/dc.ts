@@ -7,12 +7,7 @@ import axios from "axios";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import logger from "@log/index.ts";
-import { generateImage } from "@function/genImg.ts";
-import { sendMessage } from "@TDLib/function/message.ts";
-import { updateImgCache } from "@db/update.ts";
-import { deleteImgCache } from "@db/delete.ts";
-import { getChatByUsername } from "@TDLib/function/get.ts";
+import { deleteImgCache, generateImage, getChatByUsername, logger, sendMessage, updateImgCache } from "@fuyu-tdbot/plugin-api";
 
 type TargetInfo = {
     username: string;

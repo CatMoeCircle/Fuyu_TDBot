@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "${configDir}/**/*.ts",
+    "${configDir}/**/*.d.ts",
+    "./src/types/tdlib-env.d.ts"
+  ]
+}

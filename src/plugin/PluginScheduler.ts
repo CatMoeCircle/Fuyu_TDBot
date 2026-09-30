@@ -1,4 +1,5 @@
 import logger from "@log/index.ts";
+import { runWithPlugin } from "@log/context.ts";
 import { CronJob } from "cron";
 import type { PluginInfo } from "./BasePlugin.ts";
 import { Plugin as BasePlugin } from "./BasePlugin.ts";
@@ -23,7 +24,7 @@ export function setupPluginRuns(
             if (def.immediate) {
                 void (async () => {
                     try {
-                        await def.handler();
+                        await runWithPlugin(pluginName, () => def.handler());
                     } catch (e) {
                         logger.error(e,
                             `[插件管理] 插件 ${pluginName} run ${runName} immediate 执行出错:`,
@@ -38,7 +39,7 @@ export function setupPluginRuns(
                         def.cron,
                         async () => {
                             try {
-                                await def.handler();
+                                await runWithPlugin(pluginName, () => def.handler());
                             } catch (e) {
                                 logger.error(e,
                                     `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`
@@ -58,7 +59,7 @@ export function setupPluginRuns(
                 const t = setInterval(() => {
                     void (async () => {
                         try {
-                            await def.handler();
+                            await runWithPlugin(pluginName, () => def.handler());
                         } catch (e) {
                             logger.error(e, `[插件管理] 插件 ${pluginName} run ${runName} 执行出错:`);
                         }

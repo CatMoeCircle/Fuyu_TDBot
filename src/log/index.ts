@@ -1,6 +1,7 @@
-import pino, { type Level } from "pino";
+import pino, { type Level, type Logger } from "pino";
 import { join } from "path";
 import fs from "fs";
+import { getPluginName } from "./context.ts";
 
 /**
  * 获取日志级别
@@ -108,6 +109,14 @@ const logger = pino(
   {
     level: logLevel,
     base: null,
+    /**
+     * 自动附加当前插件名（见 log/context.ts）。
+     * 插件 handler / onLoad / run 执行期间打出的每条日志都会带上 `plugin`。
+     */
+    mixin() {
+      const plugin = getPluginName();
+      return plugin ? { plugin } : {};
+    },
     transport: {
       targets: transportTargets,
     },
@@ -118,6 +127,16 @@ logger.info(`日志初始化完成 - Level: ${logLevel}`);
 logger.info(`主日志: bot.yyyy-MM-dd.N.log | 错误日志: bot-error.yyyy-MM-dd.N.log`);
 if (logLevel === "debug" || logLevel === "trace") {
   logger.info(`调试日志: bot-debug.yyyy-MM-dd.N.log`);
+}
+
+/**
+ * 创建绑定插件名的子 logger。
+ *
+ * 适用于插件里的独立工具函数 / 定时器等无法依赖自动上下文的场景。
+ * 类方法内优先用 `this.logger`，handler 回调里直接 `logger.xxx()` 也会自动带插件名。
+ */
+export function createPluginLogger(pluginName: string): Logger {
+  return logger.child({ plugin: pluginName });
 }
 
 export default logger;

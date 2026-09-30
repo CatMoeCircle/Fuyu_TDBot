@@ -13,6 +13,7 @@ import { toTdInlineResults } from "@TDLib/function/inlineAdapter.ts";
 import { buildBotStartInlineButton } from "@plugin/inlineTools.ts";
 import { getConfig } from "@db/config.ts";
 import { getChatType, getUserPermission, validateCommandAccess, isInlineInScope, hasInlinePermission } from "./PluginValidator.ts";
+import { runWithPlugin } from "@log/context.ts";
 
 /**
  * 处理TDLib更新
@@ -45,7 +46,9 @@ export async function handleUpdate(
                         const typedHandler = handler.handler as (
                             update: Update
                         ) => Promise<void> | void;
-                        await typedHandler(update);
+                        await runWithPlugin(pluginInfo.name, () =>
+                            typedHandler(update)
+                        );
                     } catch (err) {
                         logger.error(
                             err,
@@ -195,11 +198,13 @@ async function handleCommand(
                 continue;
             }
 
-            const p = Promise.resolve(commandDef.handler(message, args)).catch(
-                (e: unknown) => {
-                    logger.error(e, `[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`);
-                }
-            );
+            const p = Promise.resolve(
+                runWithPlugin(pluginInfo.name, () =>
+                    commandDef.handler(message, args)
+                )
+            ).catch((e: unknown) => {
+                logger.error(e, `[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`);
+            });
             tasks.push(p);
         } catch (e) {
             logger.error(e, `[插件管理] 插件 ${pluginInfo.name} 命令处理出错:`);
@@ -323,7 +328,9 @@ async function handleInlineQuery(
                     continue;
                 }
 
-                const matchResult = inlineDef.matcher(ctx);
+                const matchResult = runWithPlugin(pluginInfo.name, () =>
+                    inlineDef.matcher(ctx)
+                );
                 if (!matchResult) {
                     continue;
                 }
@@ -340,7 +347,9 @@ async function handleInlineQuery(
                     handlerName,
                     priority,
                     task: Promise.resolve(
-                        inlineDef.handler(ctx)
+                        runWithPlugin(pluginInfo.name, () =>
+                            inlineDef.handler(ctx)
+                        )
                     ).then((r) => r as InlineResult[] | InlineResultSet),
                 });
             } catch (e) {

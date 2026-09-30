@@ -1,12 +1,5 @@
 import type { Client } from "tdl";
-import logger from "@log/index.ts";
-import { deleteMessage, sendMessage } from "@TDLib/function/message.ts";
-import { getConfig, updateConfig, removeConfigFields } from "@db/config.ts";
-import { getUser } from "@TDLib/function/get.ts";
-import { downloadFile, isGroup } from "@TDLib/function/index.ts";
-import { convertPhotoToBase64, generateImage } from "@function/genImg.ts";
-import { deleteImgCache } from "@db/delete.ts";
-import { updateImgCache } from "@db/update.ts";
+import { convertPhotoToBase64, deleteImgCache, deleteMessage, downloadFile, generateImage, getConfig, getUser, isGroup, logger, removeConfigFields, sendMessage, updateConfig, updateImgCache } from "@fuyu-tdbot/plugin-api";
 import type { updateNewMessage } from "tdlib-types";
 import path from "path";
 import { fileURLToPath } from "url";

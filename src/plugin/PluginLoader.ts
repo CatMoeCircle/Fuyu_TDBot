@@ -1,4 +1,5 @@
 import logger from "@log/index.ts";
+import { runWithPlugin } from "@log/context.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,8 +33,6 @@ interface LegacyPluginEntry {
     /** true = 顶层单文件（最后加载）；false = 目录插件 */
     singleFile: boolean;
 }
-
-type ScanEntry = PackagePluginEntry | LegacyPluginEntry;
 
 /**
  * 在目录中查找 index 文件
@@ -534,7 +533,9 @@ export async function loadPlugin(
     try {
         if (typeof pluginInstance.onLoad === "function") {
             try {
-                await pluginInstance.onLoad();
+                await runWithPlugin(pluginInstance.name, () =>
+                    pluginInstance.onLoad!()
+                );
             } catch (err) {
                 logger.error(
                     err,

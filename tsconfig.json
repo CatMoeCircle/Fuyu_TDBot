@@ -33,6 +33,6 @@
     }
   },
 
-  "include": ["src", "plugins", "packages", "eslint.config.ts", "node/loader.ts"],
+  "include": ["src", "plugins", "packages", "eslint.config.ts", "node/loader.ts", "scripts"],
   "exclude": ["node_modules", "dist"]
 }

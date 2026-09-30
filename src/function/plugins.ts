@@ -1,4 +1,5 @@
 import { PluginManager } from "@plugin/PluginManager.ts";
+import { bindPluginManager } from "@fuyu-tdbot/plugin-api";
 import type { Client } from "tdl";
 import type { Update } from "tdlib-types";
 
@@ -17,6 +18,7 @@ export async function loadPlugins(
   const pluginManager = new PluginManager();
   await pluginManager.loadPlugins(client, flushUpdateBuffer);
   globalPluginManager = pluginManager;
+  bindPluginManager(() => globalPluginManager);
   return pluginManager;
 }
 

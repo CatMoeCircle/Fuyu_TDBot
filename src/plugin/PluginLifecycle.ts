@@ -1,4 +1,5 @@
 import logger from "@log/index.ts";
+import { runWithPlugin } from "@log/context.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { CronJob } from "cron";
@@ -24,7 +25,7 @@ export async function unloadPlugin(
 
     try {
         if (pluginInfo.instance.destroy) {
-            await pluginInfo.instance.destroy();
+            await runWithPlugin(pluginName, () => pluginInfo.instance.destroy!());
         }
         clearPluginRuns(pluginRunTimers, pluginName);
         plugins.delete(pluginName);

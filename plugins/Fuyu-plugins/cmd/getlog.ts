@@ -1,9 +1,7 @@
 import type { Client } from "tdl";
-import { sendMessage } from "@TDLib/function/message.ts";
-import { isPrivate } from "@TDLib/function/index.ts";
+import { isPrivate, logger, sendMessage } from "@fuyu-tdbot/plugin-api";
 import fs from "fs/promises";
 import path from "path";
-import logger from "@log/index.ts";
 import type { updateNewMessage } from "tdlib-types";
 
 /** 日志类型 → 实际文件基名（不含轮转后缀） */

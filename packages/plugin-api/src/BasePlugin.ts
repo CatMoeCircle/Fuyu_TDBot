@@ -1,6 +1,10 @@
+/// <reference types="@prebuilt-tdlib/types" />
+
 import type { Client } from "tdl";
 import type { updateNewMessage, Update } from "tdlib-types";
+import type { Logger } from "pino";
 import type { InlineDef } from "./inline.ts";
+import { createPluginLogger } from "../../../src/log/index.ts";
 
 /** Brand used when `instanceof` may see duplicated module instances. */
 export const PLUGIN_BRAND: symbol = Symbol.for("fuyu-tdbot.plugin");
@@ -107,8 +111,22 @@ export abstract class Plugin {
   /** 插件可使用的 TDLib 客户端实例（由框架注入） */
   protected client: Client;
 
+  /** 带插件名的子 logger（惰性创建，name 赋值后才可用） */
+  #pluginLogger: Logger | undefined;
+
   constructor(client: Client) {
     this.client = client;
+  }
+
+  /**
+   * 插件日志。每条日志自动带上 `plugin: <name>`。
+   *
+   * handler / onLoad / run 回调里直接用全局 `logger` 也会自动标注插件名；
+   * 定时器、独立工具函数建议用 `this.logger` 或 `createPluginLogger(name)`。
+   */
+  get logger(): Logger {
+    this.#pluginLogger ??= createPluginLogger(this.name || "unknown-plugin");
+    return this.#pluginLogger;
   }
 
   /** 可选：插件被销毁/卸载时调用 */

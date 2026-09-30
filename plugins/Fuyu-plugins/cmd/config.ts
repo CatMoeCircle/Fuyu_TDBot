@@ -1,7 +1,5 @@
 import type { Client } from "tdl";
-import { sendMessage } from "@TDLib/function/message.ts";
-import { isPrivate } from "@TDLib/function/index.ts";
-import logger from "@log/index.ts";
+import { isPrivate, logger, sendMessage } from "@fuyu-tdbot/plugin-api";
 import type { updateNewMessage } from "tdlib-types";
 
 export default async function config(

@@ -6,9 +6,7 @@ import type {
   chat as Td$chat,
   updateNewMessage,
 } from "tdlib-types";
-import logger from "@log/index.ts";
-import { isGroup, isChannel } from "@TDLib/function/index.ts";
-import { sendMessage } from "@TDLib/function/message.ts";
+import { isChannel, isGroup, logger, sendMessage } from "@fuyu-tdbot/plugin-api";
 
 /**
  * 将 Unix 时间戳（以秒为单位）转换为格式化的日期字符串。
