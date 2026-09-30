@@ -10,10 +10,10 @@
   },
   "peerDependencies": {
     "tdl": "^8.0.0",
-    "tdlib-types": "*"
+    "@prebuilt-tdlib/types": "0.1008067.0"
   },
   "devDependencies": {
     "tdl": "^8.0.2",
-    "tdlib-types": "*"
+    "@prebuilt-tdlib/types": "0.1008067.0"
   }
 }
